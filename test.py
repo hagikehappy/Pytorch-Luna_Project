@@ -6,5 +6,5 @@ from test.test_data_coding.test_data_transport_from_ct import test_combination_o
 if __name__ == '__main__':
     pass
     # test_data_cache()
-    # test_data_transport_from_ct()
-    test_combination_of_ct_graphics_and_csv()
+    test_data_transport_from_ct()
+    # test_combination_of_ct_graphics_and_csv()

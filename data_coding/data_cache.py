@@ -1,3 +1,6 @@
+"""本文件用于存储并记录与基本缓存相关的函数"""
+
+
 import os
 import functools
 import joblib

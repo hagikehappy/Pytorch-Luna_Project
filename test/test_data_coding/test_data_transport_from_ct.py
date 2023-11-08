@@ -1,5 +1,6 @@
 from data_coding.data_transport_from_ct import *
 import tensorboard
+import cv2
 
 
 def test_data_transport_from_ct():
@@ -17,7 +18,7 @@ def test_data_transport_from_ct():
     # trans.show_one_ct_array(ct_array, slice_pos=15)
     ## 下面将要转换一个sample至tensor
     ct_candidate = CT_One_Graphic(ct_path)
-    CT_Transform.show_one_ct_tensor(ct_tensor=ct_candidate.ct_tensor)
+    CT_Transform.show_one_ct_tensor(ct_tensor=ct_candidate.ct_tensor, slice_pos=0)
 
 
 

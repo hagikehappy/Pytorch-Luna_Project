@@ -1,5 +1,7 @@
-import csv
+"""本文件存储用于将原始ct图像转为可被模型直接使用的全部相关函数"""
 
+
+import csv
 import SimpleITK as sitk
 import data_coding.data_cache
 import numpy as np
@@ -8,12 +10,17 @@ import os
 import torch
 from torchvision import transforms
 from data_coding.data_cache import disk_cache
+import config.extern_var as EXTERN_VAR
+import pandas as pd
 
 
-@disk_cache("dataset/Cache/data_for_unet")
 def Get_CT_Candidate(index):
     """用缓存封装的获取最终可用于处理图片的方式"""
     pass
+
+def Save_CT_Candidate(index, path, *args, **kwargs):
+    """存储可用CT数据的"""
+
 
 
 class CT_One_Graphic:
@@ -49,15 +56,15 @@ class CT_All_Candidates:
         self.candidates_list_path = "dataset/LUNA-Data/CSVFILES/candidates.csv"
         self.annotations_list_path = "dataset/LUNA-Data/CSVFILES/annotations.csv"
         self.candidates_list = []
-        self.candidates_list_length = None
+        self.candidates_list_length = 0
         self.annotations_list = []
-        self.annotations_list_length = None
+        self.annotations_list_length = 0
         self.ct_graphics_paths = []
-        self.ct_graphics_length = None
-        self.ct_annoted_graphics_list = []
-        self.ct_annoted_graphics_length = None
-        self.ct_unannoted_graphics_list = []
-        self.ct_unannoted_graphics_length = None
+        self.ct_graphics_length = 0
+        self.ct_annoted_slices_length = 0
+        self.ct_unannoted_slices_length = 0
+        self.ct_annoted_slices_cache_path = "dataset/Cache/data_for_unet/annoted_slices"
+        self.ct_unannoted_slices_cache_path = "dataset/Cache/data_for_unet/unannoted_slices"
 
 
     def Extract_Info_From_CSV(self):
@@ -65,7 +72,7 @@ class CT_All_Candidates:
         ## 读取所有块的信息
         with open(self.candidates_list_path, 'r') as f:
             ## 列表结构：seriesuid coordX coordY coordZ class
-            self.candidates_list = list(csv.reader(f))
+            self.candidates_list = (pd.read_csv(f)).values.tolist()
             del self.candidates_list[0]
             self.candidates_list_length = len(self.candidates_list)
             # print(len(self.candidates_list_length))
@@ -73,7 +80,7 @@ class CT_All_Candidates:
         ## 读取所有可疑结节信息
         with open(self.annotations_list_path, 'r') as f:
             ## 列表结构：seriesuid coordX coordY coordZ diameter_mm
-            self.annotations_list = list(csv.reader(f))
+            self.candidates_list = (pd.read_csv(f)).values.tolist()
             del self.annotations_list[0]
             self.annotations_list_length = len(self.annotations_list)
             # print(len(self.annotations_list_length))
@@ -91,17 +98,16 @@ class CT_All_Candidates:
         index_annoted = 0
         index_unannoted = 0
         for i in range(self.ct_graphics_length):
-            ## 取对应的CT图像
+            ## 取对应的CT图像，并进行进一步的处理
             ct_graphic = CT_One_Graphic(self.ct_graphics_paths[i][1])
             ## 遍历对于该图像的所有candidates
-            for j in range(self.candidates_list_length):
-                # 寻找uid相匹配的所有块对应的东西
+            j = 0
+            while j < self.candidates_list_length:
+                ## 寻找uid相匹配的所有块对应的东西
                 if self.candidates_list[j][0] == self.ct_graphics_paths[i][0]:
                     while True:
-                        w_n = (self.candidates_list[j][1] - ct_graphic.offset[0]) / ct_graphic.spacing[0]   ## x
-                        h_n = (self.candidates_list[j][2] - ct_graphic.offset[1]) / ct_graphic.spacing[1]   ## y
-                        c_n = (self.candidates_list[j][3] - ct_graphic.offset[2]) / ct_graphic.spacing[2]   ## z
-
+                        self.Dealing_One_Candidate(i, j)
+                        ## TODO: See What's the difference between the annoted and the unannoted
                         j += 1
                         if j >= self.candidates_list_length:
                             break
@@ -110,10 +116,62 @@ class CT_All_Candidates:
                             break
                     break
 
+        with open(self.ct_annoted_slices_cache_path, 'w') as f:
+            f.write(f"{self.ct_annoted_slices_length}")
+        with open(self.ct_unannoted_slices_cache_path, 'w') as f:
+            f.write(f"{self.ct_unannoted_slices_length}")
 
-    def Dealing_One_Candidate(self):
+    def Dealing_One_Candidate(self, i, j):
         """填充单个候选结节的具体信息"""
-        pass
+        ## 转化CSV标注信息中的[Z, Y, X]坐标为[C, H, W]
+        w_n = (self.candidates_list[j][1] - ct_graphic.offset[0]) / ct_graphic.spacing[0]  ## x
+        h_n = (self.candidates_list[j][2] - ct_graphic.offset[1]) / ct_graphic.spacing[1]  ## y
+        c_n = (self.candidates_list[j][3] - ct_graphic.offset[2]) / ct_graphic.spacing[2]  ## z
+        if w_n - int(w_n) >= 0.5:
+            if int(w_n) < ct_graphic.dimsize[0] - 1:
+                w_n = int(w_n) + 1
+        else:
+            w_n = int(w_n)
+        if h_n - int(w_n) >= 0.5:
+            h_n = int(w_n) + 1
+            if int(h_n) < ct_graphic.dimsize[1] - 1:
+                h_n = int(h_n) + 1
+        else:
+            h_n = int(w_n)
+        if c_n - int(c_n) >= 0.5:
+            c_n = int(c_n) + 1
+        else:
+            c_n = int(c_n)
+        ## 边界检查
+        delta_c_n = EXTERN_VAR.SLICES_THICKNESS_HALF + 1 - (ct_graphic.dimsize[2] - c_n)
+        if delta_c_n > 0:
+            c_n -= delta_c_n
+        else:
+            delta_c_n = EXTERN_VAR.SLICES_THICKNESS_HALF - c_n
+            if delta_c_n > 0:
+                c_n += delta_c_n
+
+        ## 取切片
+        ct_slices_t = t_graphic.ct_tensor[0][
+                      c_n - EXTERN_VAR.SLICES_THICKNESS_HALF:c_n + EXTERN_VAR.SLICES_THICKNESS_HALF + 1][:][:]
+
+        ## 区分annoted和unannoted两类数据
+        ## 这是unannoted类型，直接保存就行
+        if self.candidates_list[j][4] == 0:
+            Save_CT_Candidate(self.ct_unannoted_slices_length, self.ct_unannoted_slices_cache_path,
+                              ct_slices_t)
+            self.ct_unannoted_slices_length += 1
+        ## 这是annoted类型
+        else:
+            diameter = self.annotations_list[4]
+            ct_result_t = self.Make_Annoted_Infomation(i, w_n, h_n, c_n, diameter)
+            Save_CT_Candidate(self.ct_annoted_slices_length, self.ct_annoted_slices_cache_path,
+                              ct_slices_t)
+            self.ct_annoted_slices_length += 1
+
+    def Make_Annoted_Infomation(i, w_n, h_n, c_n, diameter):
+        """制作输入Unet的标注信息"""
+
 
     def Cache_All_CT_Candidates(self):
         """用于将所有最终用于神经网络处理的结节刷入磁盘缓存"""
@@ -132,7 +190,7 @@ class CT_Transform:
             ct_image = sitk.ReadImage(ct_path)  # (Z(C), Y(H), X(W))
         # (C, H, W)     [一般为(H, W, C)，但这里已经自动处理了]
         ct_array = np.array(sitk.GetArrayFromImage(ct_image), dtype=np.float32)
-        print(ct_array.shape)
+        # print(ct_array.shape)
         ct_array.clip(-1000, 1000, ct_array)
         return ct_array
 
@@ -149,7 +207,7 @@ class CT_Transform:
     def show_one_ct_tensor(ct_tensor, slice_pos=53):
         """显示一个numpy格式的CT切片图"""
         # 取一个切片来观察，输入默认为(N, C, H, W)
-        ct_array = ct_tensor[0, :, :, :].numpy()
+        ct_array = ct_tensor.squeeze(0).numpy()
         ct_one_slice = ct_array[slice_pos, :, :]
         plt.imshow(ct_one_slice, cmap='gray')
         plt.show()
@@ -162,6 +220,10 @@ class CT_Transform:
         ## 后续需要拆分 C 通道为适合输入的数量(这里选为10,因为绝大部分结节的直径都比10个切片小)
         ct_tensor = torch.from_numpy(ct_array)    # (C, H, W)
         ct_tensor = ct_tensor.unsqueeze(0)     # (N, C, H, W)
+        ## ct_tensor的结果从[-1000,1000]归一化至[0,1]，一满足一般的pytorch灰度图像输入要求
+        ct_tensor = (ct_tensor + 1000) / 2000
+        transform = transforms.CenterCrop((EXTERN_VAR.SLICES_CROP_Y_LENGTH, EXTERN_VAR.SLICES_CROP_X_LENGTH))
+        ct_tensor = transform(ct_tensor)
         # print("ct_tensor_ori:", ct_tensor_ori.shape)
         # print("ct_tensor:",ct_tensor.shape)
         return ct_tensor
