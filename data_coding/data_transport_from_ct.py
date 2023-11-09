@@ -12,6 +12,7 @@ from torchvision import transforms
 from data_coding.data_cache import disk_cache
 import config.extern_var as EXTERN_VAR
 import pandas as pd
+from tools.tool import DynamicCounter
 
 
 def Get_CT_Candidate(index):
@@ -30,7 +31,7 @@ class CT_One_Graphic:
         ct_image = sitk.ReadImage(ct_path)
         ## Take an Example At Notes Below
         self.seriesuid, _ = os.path.splitext(os.path.basename(ct_path))
-        self.dimsize = ct_image.GetSize()   ## eg: (512, 512, 133)
+        self.dimsize = list(ct_image.GetSize())   ## eg: (512, 512, 133)
         self.spacing = ct_image.GetSpacing()    ## eg: (0.78125, 0.78125, 2.5)
         self.offset = ct_image.GetOrigin()  ## eg: (-191.199997, -185.5, -359.0)
         self.ct_tensor = CT_Transform.transform_one_sample_to_tensor_for_train(ct_image=ct_image)
@@ -69,21 +70,21 @@ class CT_All_Candidates:
 
     def Extract_Info_From_CSV(self):
         """从表单中提取所有的候选结节信息"""
-        ## 读取所有块的信息
+        ## 读取所有块的信息，要求其根据uid排序
         with open(self.candidates_list_path, 'r') as f:
             ## 列表结构：seriesuid coordX coordY coordZ class
             self.candidates_list = (pd.read_csv(f)).values.tolist()
-            del self.candidates_list[0]
+            self.candidates_list.sort(key=lambda x: x[0])
             self.candidates_list_length = len(self.candidates_list)
-            # print(len(self.candidates_list_length))
+            # print(self.candidates_list)
 
-        ## 读取所有可疑结节信息
+        ## 读取所有可疑结节信息，要求其根据uid排序
         with open(self.annotations_list_path, 'r') as f:
             ## 列表结构：seriesuid coordX coordY coordZ diameter_mm
-            self.candidates_list = (pd.read_csv(f)).values.tolist()
-            del self.annotations_list[0]
+            self.annotations_list = (pd.read_csv(f)).values.tolist()
+            self.annotations_list.sort(key=lambda x: x[0])
             self.annotations_list_length = len(self.annotations_list)
-            # print(len(self.annotations_list_length))
+            # print(self.annotations_list)
 
         ## 提取所有图像路径信息
         for dirpath, dirnames, filenames in os.walk("dataset/LUNA-Data"):
@@ -92,22 +93,26 @@ class CT_All_Candidates:
                 if extension == ".mhd":
                     file_path = os.path.join(dirpath, filename)
                     self.ct_graphics_paths.append((ct_uid, file_path))
+        self.ct_graphics_paths.sort(key=lambda x: x[0])
         self.ct_graphics_length = len(self.ct_graphics_paths)
+        # print(self.ct_graphics_paths)
 
         ## 遍历所有图像，逐个遍历列表解析对应的图像
         index_annoted = 0
         index_unannoted = 0
+        j = 0
+        counter = DynamicCounter(self.candidates_list_length, "Extract Progression")
         for i in range(self.ct_graphics_length):
             ## 取对应的CT图像，并进行进一步的处理
+            ## 利用二者排序一致的特点
             ct_graphic = CT_One_Graphic(self.ct_graphics_paths[i][1])
             ## 遍历对于该图像的所有candidates
-            j = 0
             while j < self.candidates_list_length:
                 ## 寻找uid相匹配的所有块对应的东西
                 if self.candidates_list[j][0] == self.ct_graphics_paths[i][0]:
                     while True:
-                        self.Dealing_One_Candidate(i, j)
-                        ## TODO: See What's the difference between the annoted and the unannoted
+                        self.Dealing_One_Candidate(i, j, ct_graphic)
+                        counter.increment()
                         j += 1
                         if j >= self.candidates_list_length:
                             break
@@ -121,39 +126,81 @@ class CT_All_Candidates:
         with open(self.ct_unannoted_slices_cache_path, 'w') as f:
             f.write(f"{self.ct_unannoted_slices_length}")
 
-    def Dealing_One_Candidate(self, i, j):
+    def _check_border(self, x_n, min_length, max_border):
+        """此函数用于检查是否越界并取为整形"""
+        min_length_half = int(min_length / 2)
+        if x_n - int(x_n) >= 0.5:
+            x_n = int(x_n) + 1
+        else:
+            x_n = int(x_n)
+        ## 边界检查
+        delta_x_n = min_length_half + 1 - (max_border - x_n)
+        if delta_x_n > 0:
+            x_n -= delta_x_n
+        else:
+            delta_x_n = min_length_half - x_n
+            if delta_x_n > 0:
+                x_n += delta_x_n
+        return x_n
+
+    def _int_border(self, x_n):
+        """仅用此函数于四舍五入的整数化"""
+        if x_n - int(x_n) >= 0.5:
+            x_n = int(x_n) + 1
+        else:
+            x_n = int(x_n)
+        return x_n
+
+    def _set_to_zero_with_range(self, tensor_t, w_range, h_range):
+        """用于将范围之外的张量置0，保留区域包含前边界，不包含后边界，输入张量认为是(N, C, H, W)格式的，range为元组类型"""
+        ## 创建一个全1的张量作为掩码
+        mask = torch.ones_like(tensor_t)
+        ## 将指定范围之外的部分置0
+        mask[:, :, :, :w_range[0]] = 0
+        mask[:, :, :, w_range[1]:] = 0
+        mask[:, :, :h_range[0], :] = 0
+        mask[:, :, h_range[1]:, :] = 0
+        ## 使用掩码将输入张量中指定范围之外的部分置0
+        tensor_t *= mask
+        return tensor_t
+
+    def Dealing_One_Candidate(self, i, j, ct_graphic):
         """填充单个候选结节的具体信息"""
         ## 转化CSV标注信息中的[Z, Y, X]坐标为[C, H, W]
-        w_n = (self.candidates_list[j][1] - ct_graphic.offset[0]) / ct_graphic.spacing[0]  ## x
-        h_n = (self.candidates_list[j][2] - ct_graphic.offset[1]) / ct_graphic.spacing[1]  ## y
+        w_n = (self.candidates_list[j][1] - ct_graphic.offset[0]) / ct_graphic.spacing[0] \
+              - EXTERN_VAR.SLICES_X_CROP  ## x
+        ct_graphic.dimsize[0] = EXTERN_VAR.SLICES_CROP_X_LENGTH
+        h_n = (self.candidates_list[j][2] - ct_graphic.offset[1]) / ct_graphic.spacing[1] \
+              - EXTERN_VAR.SLICES_Y_CROP  ## y
+        ct_graphic.dimsize[1] = EXTERN_VAR.SLICES_CROP_Y_LENGTH
         c_n = (self.candidates_list[j][3] - ct_graphic.offset[2]) / ct_graphic.spacing[2]  ## z
-        if w_n - int(w_n) >= 0.5:
-            if int(w_n) < ct_graphic.dimsize[0] - 1:
-                w_n = int(w_n) + 1
-        else:
-            w_n = int(w_n)
-        if h_n - int(w_n) >= 0.5:
-            h_n = int(w_n) + 1
-            if int(h_n) < ct_graphic.dimsize[1] - 1:
-                h_n = int(h_n) + 1
-        else:
-            h_n = int(w_n)
-        if c_n - int(c_n) >= 0.5:
-            c_n = int(c_n) + 1
-        else:
-            c_n = int(c_n)
-        ## 边界检查
-        delta_c_n = EXTERN_VAR.SLICES_THICKNESS_HALF + 1 - (ct_graphic.dimsize[2] - c_n)
-        if delta_c_n > 0:
-            c_n -= delta_c_n
-        else:
-            delta_c_n = EXTERN_VAR.SLICES_THICKNESS_HALF - c_n
-            if delta_c_n > 0:
-                c_n += delta_c_n
 
-        ## 取切片
-        ct_slices_t = t_graphic.ct_tensor[0][
-                      c_n - EXTERN_VAR.SLICES_THICKNESS_HALF:c_n + EXTERN_VAR.SLICES_THICKNESS_HALF + 1][:][:]
+        ## 边界检查并调整
+        w_n_checked = self._check_border(w_n, EXTERN_VAR.SLICES_X_OUTPUT_LENGTH, EXTERN_VAR.SLICES_CROP_X_LENGTH)
+        h_n_checked = self._check_border(h_n, EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH, EXTERN_VAR.SLICES_CROP_Y_LENGTH)
+        c_n_checked = self._check_border(c_n, EXTERN_VAR.SLICES_THICKNESS, ct_graphic.dimsize[2])
+
+        ## 取切片，在训练时只将标注部分呈现，其余部分置0（1是语义）（在完全评估时才呈现非标注部分）
+        ## 这样可以让UNET更好的关注结节部分   (N, C, H, W)，即(N, Z, Y, X)，大小为64*64
+        # print(ct_graphic.ct_tensor.shape)
+
+        ## 这里在制作UNET输入级训练信息，所有输入级训练图全部需要在Z方向裁剪和padding，输入级操作并不区分是否为annoted类型
+        ct_slices_t = ct_graphic.ct_tensor[:,
+                      c_n_checked - EXTERN_VAR.SLICES_THICKNESS_HALF:
+                      c_n_checked + EXTERN_VAR.SLICES_THICKNESS - EXTERN_VAR.SLICES_THICKNESS_HALF,
+                      :, :]
+        ## TODO：Not Done
+
+        ## 这里在制作输出级的标注信息
+        ct_slices_t = ct_slices_t[:, :,
+                      h_n_checked - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF:
+                      h_n_checked + EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF,
+                      :]
+        ct_slices_t = ct_slices_t[:, :, :,
+                      w_n_checked - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF:
+                      w_n_checked + EXTERN_VAR.SLICES_X_OUTPUT_LENGTH - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF]
+        ct_slices_t = ct_slices_t.contiguous()
+        # print(ct_slices_t.shape)
 
         ## 区分annoted和unannoted两类数据
         ## 这是unannoted类型，直接保存就行
@@ -163,14 +210,27 @@ class CT_All_Candidates:
             self.ct_unannoted_slices_length += 1
         ## 这是annoted类型
         else:
-            diameter = self.annotations_list[4]
-            ct_result_t = self.Make_Annoted_Infomation(i, w_n, h_n, c_n, diameter)
+            ## 寻找该位置对应的diameter，一小部分candidate中标注为1的结节在annotation中并无标注
+
+
+            ## 这里认为 X, Y 尺度是一样的
+            diameter = (self.candidates_list[j][1] - ct_graphic.offset[0]) / ct_graphic.spacing[0]
+            diameter = self._int_border(diameter)
+            w_n_checked = self._check_border(w_n, diameter, EXTERN_VAR.SLICES_CROP_X_LENGTH)
+            h_n_checked = self._check_border(h_n, diameter, EXTERN_VAR.SLICES_CROP_Y_LENGTH)
+            ct_result_t = self.Make_Annoted_Infomation(i, w_n, h_n, c_n, diameter, ct_slices_t)
             Save_CT_Candidate(self.ct_annoted_slices_length, self.ct_annoted_slices_cache_path,
                               ct_slices_t)
             self.ct_annoted_slices_length += 1
+            for k in range(EXTERN_VAR.SLICES_THICKNESS):
+                CT_Transform.show_one_ct_tensor(ct_slices_t, k)
+            print()
 
-    def Make_Annoted_Infomation(i, w_n, h_n, c_n, diameter):
+    def Make_Annoted_Infomation(self, i, w_n, h_n, c_n, diameter, ct_slices_t):
         """制作输入Unet的标注信息"""
+        ## TODO: 标注信息制作
+        pass
+        return ct_slices_t
 
 
     def Cache_All_CT_Candidates(self):
