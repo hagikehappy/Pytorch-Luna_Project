@@ -60,12 +60,19 @@ class CT_All_Candidates:
         self.candidates_list_length = 0
         self.annotations_list = []
         self.annotations_list_length = 0
+        self.annotations_list_current_pointer = 0
+        self.annotations_list_current_length = 0
         self.ct_graphics_paths = []
         self.ct_graphics_length = 0
         self.ct_annoted_slices_length = 0
         self.ct_unannoted_slices_length = 0
-        self.ct_annoted_slices_cache_path = "dataset/Cache/data_for_unet/annoted_slices"
+        self.ct_annoted_slices_cache_path = "dataset/Cache/data_for_unet/annoted_slices/"
+        self.ct_annoted_slices_input_cache_path = self.ct_annoted_slices_cache_path + "input"
+        self.ct_annoted_slices_label_cache_path = self.ct_annoted_slices_cache_path + "label"
+        self.ct_annoted_slices_raw_cache_path = self.ct_annoted_slices_cache_path + "raw"
         self.ct_unannoted_slices_cache_path = "dataset/Cache/data_for_unet/unannoted_slices"
+        self.ct_unannoted_slices_output_cache_path = self.ct_unannoted_slices_cache_path + "output"
+        self.ct_unannoted_slices_raw_cache_path = self.ct_unannoted_slices_cache_path + "raw"
 
 
     def Extract_Info_From_CSV(self):
@@ -76,6 +83,7 @@ class CT_All_Candidates:
             self.candidates_list = (pd.read_csv(f)).values.tolist()
             self.candidates_list.sort(key=lambda x: x[0])
             self.candidates_list_length = len(self.candidates_list)
+            self.candidates_list.append([["WATCHDOG", 0.0, 0.0, 0.0, 0]])
             # print(self.candidates_list)
 
         ## 读取所有可疑结节信息，要求其根据uid排序
@@ -84,6 +92,7 @@ class CT_All_Candidates:
             self.annotations_list = (pd.read_csv(f)).values.tolist()
             self.annotations_list.sort(key=lambda x: x[0])
             self.annotations_list_length = len(self.annotations_list)
+            self.annotations_list.append([["WATCHDOG", 0.0, 0.0, 0.0, 1.0]])
             # print(self.annotations_list)
 
         ## 提取所有图像路径信息
@@ -95,6 +104,7 @@ class CT_All_Candidates:
                     self.ct_graphics_paths.append((ct_uid, file_path))
         self.ct_graphics_paths.sort(key=lambda x: x[0])
         self.ct_graphics_length = len(self.ct_graphics_paths)
+        self.ct_graphics_paths.append(("WATCHDOG","WATCHDOG"))
         # print(self.ct_graphics_paths)
 
         ## 遍历所有图像，逐个遍历列表解析对应的图像
@@ -106,6 +116,11 @@ class CT_All_Candidates:
             ## 取对应的CT图像，并进行进一步的处理
             ## 利用二者排序一致的特点
             ct_graphic = CT_One_Graphic(self.ct_graphics_paths[i][1])
+            ## 寻找在annotations_list中对应的位置
+            k = self.annotations_list_current_pointer
+            while self.annotations_list[k][0] == ct_graphic.seriesuid:
+                k += 1
+            self.annotations_list_current_length = k - self.annotations_list_current_pointer
             ## 遍历对于该图像的所有candidates
             while j < self.candidates_list_length:
                 ## 寻找uid相匹配的所有块对应的东西
@@ -114,8 +129,6 @@ class CT_All_Candidates:
                         self.Dealing_One_Candidate(i, j, ct_graphic)
                         counter.increment()
                         j += 1
-                        if j >= self.candidates_list_length:
-                            break
                         ## 利用在csv表格中同一uid都集中在一起
                         if self.candidates_list[j][0] != self.ct_graphics_paths[i][0]:
                             break
@@ -185,37 +198,69 @@ class CT_All_Candidates:
         # print(ct_graphic.ct_tensor.shape)
 
         ## 这里在制作UNET输入级训练信息，所有输入级训练图全部需要在Z方向裁剪和padding，输入级操作并不区分是否为annoted类型
+        ## 注意，测试信息也有与训练数据预处理方式完全一致，仅因分割数据集而分开
+        ## 但是评估信息并没有掩码处理，而是整个图像直接输入；对于高度假阳性的过滤放在二级模型上
         ct_slices_t = ct_graphic.ct_tensor[:,
                       c_n_checked - EXTERN_VAR.SLICES_THICKNESS_HALF:
                       c_n_checked + EXTERN_VAR.SLICES_THICKNESS - EXTERN_VAR.SLICES_THICKNESS_HALF,
                       :, :]
-        ## TODO：Not Done
+        ct_slices_raw = ct_slices_t.contiguous()
 
-        ## 这里在制作输出级的标注信息
-        ct_slices_t = ct_slices_t[:, :,
+        ## 这里在制作输出级的原始切割
+        ct_slices_output = ct_slices_raw[:, :,
                       h_n_checked - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF:
                       h_n_checked + EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF,
                       :]
-        ct_slices_t = ct_slices_t[:, :, :,
+        ct_slices_output = ct_slices_output[:, :, :,
                       w_n_checked - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF:
                       w_n_checked + EXTERN_VAR.SLICES_X_OUTPUT_LENGTH - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF]
-        ct_slices_t = ct_slices_t.contiguous()
+        ct_slices_output = ct_slices_output.contiguous()
         # print(ct_slices_t.shape)
 
         ## 区分annoted和unannoted两类数据
         ## 这是unannoted类型，直接保存就行
         if self.candidates_list[j][4] == 0:
-            Save_CT_Candidate(self.ct_unannoted_slices_length, self.ct_unannoted_slices_cache_path,
-                              ct_slices_t)
+            Save_CT_Candidate(self.ct_unannoted_slices_length, self.ct_unannoted_slices_raw_cache_path,
+                              ct_slices_raw)
+            Save_CT_Candidate(self.ct_unannoted_slices_length, self.ct_unannoted_slices_output_cache_path,
+                              ct_slices_output)
             self.ct_unannoted_slices_length += 1
         ## 这是annoted类型
         else:
             ## 寻找该位置对应的diameter，一小部分candidate中标注为1的结节在annotation中并无标注
+            ## 若无标注，则放弃该点
+            k = 0
+            whether_annoted = False
+            for k in range(self.annotations_list_current_length):
+                if abs(self.candidates_list[j][1] -
+                       self.annotations_list[self.annotations_list_current_pointer + k][1]) <= 5.0 and \
+                    abs(self.candidates_list[j][2] -
+                        self.annotations_list[self.annotations_list_current_pointer + k][2]) <= 5.0 and \
+                    abs(self.candidates_list[j][3] -
+                        self.annotations_list[self.annotations_list_current_pointer + k][3]) <= 5.0 :
+                    diameter = self.annotations_list[self.annotations_list_current_pointer + k][4] \
+                               / ct_graphic.spacing[0]
+                    diameter = self._int_border(diameter)
 
+                    whether_annoted = True
+                    break
+            if whether_annoted is False:
+                return
+
+            ## 缓存原始数据
+            Save_CT_Candidate(self.ct_annoted_slices_length, self.ct_annoted_slices_raw_cache_path,
+                              ct_slices_raw)
+            ## 进行padding
+            ct_slices_input = self._set_to_zero_with_range(ct_slices_raw,
+                            (w_n_checked - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF,
+                             w_n_checked + EXTERN_VAR.SLICES_X_OUTPUT_LENGTH - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF),
+                            (h_n_checked - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF,
+                             h_n_checked + EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF))
+            ## 缓存padding后的输入数据
+            Save_CT_Candidate(self.ct_annoted_slices_length, self.ct_annoted_slices_raw_cache_path,
+                              ct_slices_raw)
 
             ## 这里认为 X, Y 尺度是一样的
-            diameter = (self.candidates_list[j][1] - ct_graphic.offset[0]) / ct_graphic.spacing[0]
-            diameter = self._int_border(diameter)
             w_n_checked = self._check_border(w_n, diameter, EXTERN_VAR.SLICES_CROP_X_LENGTH)
             h_n_checked = self._check_border(h_n, diameter, EXTERN_VAR.SLICES_CROP_Y_LENGTH)
             ct_result_t = self.Make_Annoted_Infomation(i, w_n, h_n, c_n, diameter, ct_slices_t)
