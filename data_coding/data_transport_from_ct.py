@@ -31,7 +31,7 @@ class CT_One_Graphic:
         ct_image = sitk.ReadImage(ct_path)
         ## Take an Example At Notes Below
         self.seriesuid, _ = os.path.splitext(os.path.basename(ct_path))
-        self.dimsize = list(ct_image.GetSize())   ## eg: (512, 512, 133)
+        self.dimsize = ct_image.GetSize()   ## eg: (512, 512, 133)
         self.spacing = ct_image.GetSpacing()    ## eg: (0.78125, 0.78125, 2.5)
         self.offset = ct_image.GetOrigin()  ## eg: (-191.199997, -185.5, -359.0)
         self.ct_tensor = CT_Transform.transform_one_sample_to_tensor_for_train(ct_image=ct_image)
@@ -133,6 +133,7 @@ class CT_All_Candidates:
                         if self.candidates_list[j][0] != self.ct_graphics_paths[i][0]:
                             break
                     break
+            self.annotations_list_current_pointer += k
 
         with open(self.ct_annoted_slices_cache_path, 'w') as f:
             f.write(f"{self.ct_annoted_slices_length}")
@@ -140,13 +141,8 @@ class CT_All_Candidates:
             f.write(f"{self.ct_unannoted_slices_length}")
 
     def _check_border(self, x_n, min_length, max_border):
-        """此函数用于检查是否越界并取为整形"""
+        """此函数用于检查是否越界并取为整形，要求输入的x_n为整形"""
         min_length_half = int(min_length / 2)
-        if x_n - int(x_n) >= 0.5:
-            x_n = int(x_n) + 1
-        else:
-            x_n = int(x_n)
-        ## 边界检查
         delta_x_n = min_length_half + 1 - (max_border - x_n)
         if delta_x_n > 0:
             x_n -= delta_x_n
@@ -164,8 +160,11 @@ class CT_All_Candidates:
             x_n = int(x_n)
         return x_n
 
-    def _set_to_zero_with_range(self, tensor_t, w_range, h_range):
-        """用于将范围之外的张量置0，保留区域包含前边界，不包含后边界，输入张量认为是(N, C, H, W)格式的，range为元组类型"""
+    def _set_to_minus_one_with_range(self, tensor_t, w_range, h_range):
+        """
+        该代码直接改变原张量，用于将范围之外的张量置0，保留区域包含前边界，不包含后边界，
+        输入张量认为是(N, C, H, W)格式的，range为元组类型
+        """
         ## 创建一个全1的张量作为掩码
         mask = torch.ones_like(tensor_t)
         ## 将指定范围之外的部分置0
@@ -175,18 +174,49 @@ class CT_All_Candidates:
         mask[:, :, h_range[1]:, :] = 0
         ## 使用掩码将输入张量中指定范围之外的部分置0
         tensor_t *= mask
+        tensor_t += (1 - mask) * -1
         return tensor_t
 
     def Dealing_One_Candidate(self, i, j, ct_graphic):
         """填充单个候选结节的具体信息"""
+        ## 区分annoted和unannoted，如果是annoted则直接从annoted列表中取数据，这样数据更精确
+        w_n_raw = self.candidates_list[j][1]
+        h_n_raw = self.candidates_list[j][2]
+        c_n_raw = self.candidates_list[j][3]
+        if self.candidates_list[j][4] == 0:
+            pass
+        else:
+            k = 0
+            whether_annoted = False
+            for k in range(self.annotations_list_current_length):
+                if abs(w_n_raw -
+                       self.annotations_list[self.annotations_list_current_pointer + k][1]) <= 5.0 and \
+                    abs(h_n_raw -
+                        self.annotations_list[self.annotations_list_current_pointer + k][2]) <= 5.0 and \
+                    abs(c_n_raw -
+                        self.annotations_list[self.annotations_list_current_pointer + k][3]) <= 5.0:
+                    w_n_raw = self.annotations_list[self.annotations_list_current_pointer + k][1]
+                    h_n_raw = self.annotations_list[self.annotations_list_current_pointer + k][2]
+                    c_n_raw = self.annotations_list[self.annotations_list_current_pointer + k][3]
+                    diameter = self.annotations_list[self.annotations_list_current_pointer + k][4] \
+                               / ct_graphic.spacing[0]
+                    diameter = self._int_border(diameter)
+                    diameter += EXTERN_VAR.UNET_DIAMETER_EXPANSION
+                    whether_annoted = True
+                    break
+            ## 如果不存在匹配数据则直接返回
+            if whether_annoted is False:
+                return
+
         ## 转化CSV标注信息中的[Z, Y, X]坐标为[C, H, W]
-        w_n = (self.candidates_list[j][1] - ct_graphic.offset[0]) / ct_graphic.spacing[0] \
+        w_n = (w_n_raw - ct_graphic.offset[0]) / ct_graphic.spacing[0] \
               - EXTERN_VAR.SLICES_X_CROP  ## x
-        ct_graphic.dimsize[0] = EXTERN_VAR.SLICES_CROP_X_LENGTH
-        h_n = (self.candidates_list[j][2] - ct_graphic.offset[1]) / ct_graphic.spacing[1] \
+        w_n = self._int_border(w_n)
+        h_n = (h_n_raw - ct_graphic.offset[1]) / ct_graphic.spacing[1] \
               - EXTERN_VAR.SLICES_Y_CROP  ## y
-        ct_graphic.dimsize[1] = EXTERN_VAR.SLICES_CROP_Y_LENGTH
-        c_n = (self.candidates_list[j][3] - ct_graphic.offset[2]) / ct_graphic.spacing[2]  ## z
+        h_n = self._int_border(h_n)
+        c_n = (c_n_raw - ct_graphic.offset[2]) / ct_graphic.spacing[2]  ## z
+        c_n = self._int_border(c_n)
 
         ## 边界检查并调整
         w_n_checked = self._check_border(w_n, EXTERN_VAR.SLICES_X_OUTPUT_LENGTH, EXTERN_VAR.SLICES_CROP_X_LENGTH)
@@ -207,13 +237,13 @@ class CT_All_Candidates:
         ct_slices_raw = ct_slices_t.contiguous()
 
         ## 这里在制作输出级的原始切割
-        ct_slices_output = ct_slices_raw[:, :,
+        ct_slices_output = ct_slices_raw[:, :, :,
+                      w_n_checked - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF:
+                      w_n_checked + EXTERN_VAR.SLICES_X_OUTPUT_LENGTH - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF]
+        ct_slices_output = ct_slices_output[:, :,
                       h_n_checked - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF:
                       h_n_checked + EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF,
                       :]
-        ct_slices_output = ct_slices_output[:, :, :,
-                      w_n_checked - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF:
-                      w_n_checked + EXTERN_VAR.SLICES_X_OUTPUT_LENGTH - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF]
         ct_slices_output = ct_slices_output.contiguous()
         # print(ct_slices_t.shape)
 
@@ -227,56 +257,64 @@ class CT_All_Candidates:
             self.ct_unannoted_slices_length += 1
         ## 这是annoted类型
         else:
-            ## 寻找该位置对应的diameter，一小部分candidate中标注为1的结节在annotation中并无标注
-            ## 若无标注，则放弃该点
-            k = 0
-            whether_annoted = False
-            for k in range(self.annotations_list_current_length):
-                if abs(self.candidates_list[j][1] -
-                       self.annotations_list[self.annotations_list_current_pointer + k][1]) <= 5.0 and \
-                    abs(self.candidates_list[j][2] -
-                        self.annotations_list[self.annotations_list_current_pointer + k][2]) <= 5.0 and \
-                    abs(self.candidates_list[j][3] -
-                        self.annotations_list[self.annotations_list_current_pointer + k][3]) <= 5.0 :
-                    diameter = self.annotations_list[self.annotations_list_current_pointer + k][4] \
-                               / ct_graphic.spacing[0]
-                    diameter = self._int_border(diameter)
-
-                    whether_annoted = True
-                    break
-            if whether_annoted is False:
-                return
-
             ## 缓存原始数据
             Save_CT_Candidate(self.ct_annoted_slices_length, self.ct_annoted_slices_raw_cache_path,
                               ct_slices_raw)
             ## 进行padding
-            ct_slices_input = self._set_to_zero_with_range(ct_slices_raw,
+            ct_slices_input = self._set_to_minus_one_with_range(ct_slices_raw,
                             (w_n_checked - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF,
                              w_n_checked + EXTERN_VAR.SLICES_X_OUTPUT_LENGTH - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF),
                             (h_n_checked - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF,
                              h_n_checked + EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF))
             ## 缓存padding后的输入数据
-            Save_CT_Candidate(self.ct_annoted_slices_length, self.ct_annoted_slices_raw_cache_path,
-                              ct_slices_raw)
+            Save_CT_Candidate(self.ct_annoted_slices_length, self.ct_annoted_slices_input_cache_path,
+                              ct_slices_input)
 
-            ## 这里认为 X, Y 尺度是一样的
+            ## 处理label
+            ## 这里认为 X, Y 尺度是一样的，将坐标转换为64*64内的坐标
+            if diameter > EXTERN_VAR.SLICES_X_OUTPUT_LENGTH:
+                diameter = EXTERN_VAR.SLICES_X_OUTPUT_LENGTH
+            w_n -= w_n_checked - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF
+            h_n -= h_n_checked - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF
             w_n_checked = self._check_border(w_n, diameter, EXTERN_VAR.SLICES_CROP_X_LENGTH)
             h_n_checked = self._check_border(h_n, diameter, EXTERN_VAR.SLICES_CROP_Y_LENGTH)
-            ct_result_t = self.Make_Annoted_Infomation(i, w_n, h_n, c_n, diameter, ct_slices_t)
-            Save_CT_Candidate(self.ct_annoted_slices_length, self.ct_annoted_slices_cache_path,
-                              ct_slices_t)
+            ct_slices_label = self.Make_Annoted_Infomation(w_n_checked, h_n_checked, diameter, ct_slices_output)
+            Save_CT_Candidate(self.ct_annoted_slices_length, self.ct_annoted_slices_cache_path, ct_slices_label)
             self.ct_annoted_slices_length += 1
+
             for k in range(EXTERN_VAR.SLICES_THICKNESS):
-                CT_Transform.show_one_ct_tensor(ct_slices_t, k)
+                CT_Transform.show_one_ct_tensor(ct_slices_output, k)
+                CT_Transform.show_one_ct_tensor(ct_slices_label, k)
             print()
 
-    def Make_Annoted_Infomation(self, i, w_n, h_n, c_n, diameter, ct_slices_t):
+    def Make_Annoted_Infomation(self, w_n, h_n, diameter, ct_slices_output):
         """制作输入Unet的标注信息"""
         ## TODO: 标注信息制作
-        pass
-        return ct_slices_t
+        radius = int(diameter / 2)
+        w_begin = w_n - radius
+        h_begin = h_n - radius
+        ct_slices_label = self._set_to_minus_one_with_range(ct_slices_output.clone(),
+                                                            (w_begin, w_begin + diameter),
+                                                            (h_begin, h_begin + diameter))
+        ## 将 < 阈值的部分置-1，高于阈值部分不变
+        for i in range(diameter):
+            for j in range(diameter):
+                for k in range(EXTERN_VAR.SLICES_THICKNESS):
+                    if ct_slices_label[0, k, h_begin + j, w_begin + i] <= EXTERN_VAR.UNET_LOW_THRESHOLD:
+                        ct_slices_label[0, k, h_begin + j, w_begin + i] = -1
+                    elif ct_slices_label[0, k, h_begin + j, w_begin + i] >= EXTERN_VAR.UNET_HIGH_THRESHOLD:
+                        ct_slices_label[0, k, h_begin + j, w_begin + i] = 1
+                    else:
+                        ct_slices_label[0, k, h_begin + j, w_begin + i] = self._Normalize(ct_slices_label[0, k, h_begin + j, w_begin + i],
+                                        (EXTERN_VAR.UNET_LOW_THRESHOLD, EXTERN_VAR.UNET_HIGH_THRESHOLD),
+                                        (0, 1))
 
+        return ct_slices_label
+
+
+    def _Normalize(self, val, ori, dest):
+        """将数据缩放至指定范围，ori, dest均表示为(min, max)"""
+        return (val - ori[0]) * (dest[1] - dest[0]) / (ori[1] - ori[0]) + dest[0]
 
     def Cache_All_CT_Candidates(self):
         """用于将所有最终用于神经网络处理的结节刷入磁盘缓存"""
@@ -314,7 +352,7 @@ class CT_Transform:
         # 取一个切片来观察，输入默认为(N, C, H, W)
         ct_array = ct_tensor.squeeze(0).numpy()
         ct_one_slice = ct_array[slice_pos, :, :]
-        plt.imshow(ct_one_slice, cmap='gray')
+        plt.imshow(ct_one_slice, cmap='gray', vmin=-1, vmax=1)
         plt.show()
 
     @staticmethod
@@ -325,8 +363,10 @@ class CT_Transform:
         ## 后续需要拆分 C 通道为适合输入的数量(这里选为10,因为绝大部分结节的直径都比10个切片小)
         ct_tensor = torch.from_numpy(ct_array)    # (C, H, W)
         ct_tensor = ct_tensor.unsqueeze(0)     # (N, C, H, W)
-        ## ct_tensor的结果从[-1000,1000]归一化至[0,1]，一满足一般的pytorch灰度图像输入要求
-        ct_tensor = (ct_tensor + 1000) / 2000
+        ## ct_tensor的结果从[-1000,1000]归一化至[0, 1]，一满足一般的pytorch灰度图像输入要求
+        # ct_tensor = (ct_tensor + 1000) / 2000
+        ## 如果归一化至[-1, 1]的情况
+        ct_tensor = ct_tensor / 1000
         transform = transforms.CenterCrop((EXTERN_VAR.SLICES_CROP_Y_LENGTH, EXTERN_VAR.SLICES_CROP_X_LENGTH))
         ct_tensor = transform(ct_tensor)
         # print("ct_tensor_ori:", ct_tensor_ori.shape)
