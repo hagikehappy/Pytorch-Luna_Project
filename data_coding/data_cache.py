@@ -1,40 +1,82 @@
-"""本文件用于存储并记录与基本缓存相关的函数"""
+"""数据存取类具体函数"""
 
 
 import os
-import functools
 import joblib
+import functools
+import config.extern_var as EXTERN_VAR
+from tools.tool import *
 
 
-# @functools.lru_cache(maxsize=1, typed=True)
-"""函数的内存缓存装饰器，其中maxsize代表缓存量的大小；typed对不同类型的函数参数进行单独缓存。"""
+def Get_CT_Candidate(index, path):
+    """用缓存封装的获取最终可用于处理图片的方式"""
+    index_str = "{:06}".format(index)
+    cache_file = os.path.join(path, index_str)
+    return joblib.load(cache_file)
+
+@functools.lru_cache(maxsize=EXTERN_VAR.CACHE_MAXSIZE_ANNOTED, typed=True)
+def Get_CT_Annoted_Input(index):
+    """从内存缓存获取"""
+    index_str = "{:06}".format(index)
+    cache_file = os.path.join(EXTERN_VAR.CACHE_PATH_ANNOTED_INPUT, index_str)
+    return joblib.load(cache_file)
+
+@functools.lru_cache(maxsize=EXTERN_VAR.CACHE_MAXSIZE_ANNOTED, typed=True)
+def Get_CT_Annoted_LABEL(index):
+    """从内存缓存获取"""
+    index_str = "{:06}".format(index)
+    cache_file = os.path.join(EXTERN_VAR.CACHE_PATH_ANNOTED_LABEL, index_str)
+    return joblib.load(cache_file)
+
+@functools.lru_cache(maxsize=EXTERN_VAR.CACHE_MAXSIZE_ANNOTED, typed=True)
+def Get_CT_Annoted_RAW(index):
+    """从内存缓存获取"""
+    index_str = "{:06}".format(index)
+    cache_file = os.path.join(EXTERN_VAR.CACHE_PATH_ANNOTED_RAW, index_str)
+    return joblib.load(cache_file)
+
+@functools.lru_cache(maxsize=EXTERN_VAR.CACHE_MAXSIZE_UNANNOTED, typed=True)
+def Get_CT_Unannoted_OUTPUT(index):
+    """从内存缓存获取"""
+    index_str = "{:06}".format(index)
+    cache_file = os.path.join(EXTERN_VAR.CACHE_PATH_UNANNOTED_OUTPUT, index_str)
+    return joblib.load(cache_file)
+
+@functools.lru_cache(maxsize=EXTERN_VAR.CACHE_MAXSIZE_UNANNOTED, typed=True)
+def Get_CT_Unannoted_RAW(index):
+    """从内存缓存获取"""
+    index_str = "{:06}".format(index)
+    cache_file = os.path.join(EXTERN_VAR.CACHE_PATH_UNANNOTED_RAW, index_str)
+    return joblib.load(cache_file)
+
+def Flush_All_CT_Data_To_Mem():
+    """将所有缓存刷入内存中"""
+    print("\nFlush_All_CT_Data_To_Mem:")
+    counter = DynamicCounter(EXTERN_VAR.CACHE_MAXSIZE_ANNOTED, "CT_Annoted_INPUT", 100)
+    for i in range(EXTERN_VAR.CACHE_MAXSIZE_ANNOTED):
+        Get_CT_Annoted_Input(i)
+        counter.increment()
+    counter = DynamicCounter(EXTERN_VAR.CACHE_MAXSIZE_ANNOTED, "CT_Annoted_LABEL", 100)
+    for i in range(EXTERN_VAR.CACHE_MAXSIZE_ANNOTED):
+        Get_CT_Annoted_LABEL(i)
+        counter.increment()
+    counter = DynamicCounter(EXTERN_VAR.CACHE_MAXSIZE_ANNOTED, "CT_Annoted_RAW", 100)
+    for i in range(EXTERN_VAR.CACHE_MAXSIZE_ANNOTED):
+        Get_CT_Annoted_RAW(i)
+        counter.increment()
+    counter = DynamicCounter(EXTERN_VAR.CACHE_MAXSIZE_UNANNOTED, "CT_Unannoted_OUTPUT", 100)
+    for i in range(EXTERN_VAR.CACHE_MAXSIZE_UNANNOTED):
+        Get_CT_Unannoted_OUTPUT(i)
+        counter.increment()
+    # counter = DynamicCounter(EXTERN_VAR.CACHE_MAXSIZE_UNANNOTED, "CT_Unannoted_RAW", 100)
+    # for i in range(EXTERN_VAR.CACHE_MAXSIZE_UNANNOTED):
+    #     Get_CT_Unannoted_RAW(i)
+    #     counter.increment()
+    print()
 
 
-def disk_cache(directory):
-    """函数的磁盘缓存装饰器"""
-    def decorator(func):
-        func_name = func.__name__
-
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            # 构建缓存文件的路径
-            if 'cache_num_code' in kwargs:
-                num_code = kwargs.pop('cache_num_code')
-            else:
-                num_code = 0
-            cache_file = os.path.join(directory,
-                                      f"{func_name + '_' + str(num_code) + '_' + str(args) + str(kwargs)}.pkl")
-            # 检查缓存文件是否存在
-            if os.path.exists(cache_file):
-                # 如果缓存文件存在，从文件中加载结果
-                # print(f"Loading {func_name} from disk cache...")
-                result = joblib.load(cache_file)
-            else:
-                # 如果缓存文件不存在，调用原始函数并保存结果到缓存文件
-                # print(f"Computing {func_name} and saving to disk cache...")
-                result = func(*args, **kwargs)
-                joblib.dump(result, cache_file)
-            return result
-        return wrapper
-    return decorator
-
+def Save_CT_Candidate(index, path, data, *arg, **kwargs):
+    """存储可用CT数据的"""
+    index_str = "{:06}".format(index)
+    cache_file = os.path.join(path, index_str)
+    joblib.dump(data, cache_file)

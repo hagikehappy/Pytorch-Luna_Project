@@ -1,4 +1,5 @@
 from data_coding.data_transport_from_ct import *
+from data_coding.data_cache import *
 import tensorboard
 import cv2
 
@@ -18,12 +19,21 @@ def test_data_transport_from_ct():
     # trans.show_one_ct_array(ct_array, slice_pos=15)
     ## 下面将要转换一个sample至tensor
     ct_candidate = CT_One_Graphic(ct_path)
-    CT_Transform.show_one_ct_tensor(ct_tensor=ct_candidate.ct_tensor, slice_pos=0)
-
+    CT_Transform.show_one_ct_tensor(ct_tensor=ct_candidate.ct_tensor, slice_pos=50)
 
 
 def test_combination_of_ct_graphics_and_csv():
     """测试是否能正确结合graphics和csv标注信息"""
     ct_all_candidates = CT_All_Candidates()
     ct_all_candidates.Extract_Info_From_CSV()
+
+
+def test_tensor_cache():
+    """测试是否能正常使用cache"""
+    ct_all_candidates = CT_All_Candidates()
+    ct_all_candidates.Test_Cache("annoted_slices")
+
+def test_cache_mem():
+    """测试刷缓存功能"""
+    Flush_All_CT_Data_To_Mem()
 

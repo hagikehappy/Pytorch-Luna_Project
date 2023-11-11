@@ -1,4 +1,4 @@
-from data_coding.data_cache import *
+from data_coding.data_cache_tool import *
 
 
 def test_data_cache():
