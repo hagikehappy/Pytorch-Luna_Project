@@ -1,5 +1,7 @@
 """全局变量区"""
 
+from config.settings import Settings
+
 ## 经验上一般厚度不超过5
 SLICES_THICKNESS = 5
 SLICES_THICKNESS_HALF = int(SLICES_THICKNESS / 2)
@@ -30,8 +32,9 @@ UNET_HIGH_THRESHOLD = 0.4
 CACHE_UNANNOTED_DATA_RATE = 100
 
 ## 内存中缓存数量的最大限制
-CACHE_MAXSIZE_ANNOTED = 1159
-CACHE_MAXSIZE_UNANNOTED = 5499
+settings = Settings()
+CACHE_MAXSIZE_ANNOTED = settings.config['annoted_data_num']
+CACHE_MAXSIZE_UNANNOTED = settings.config['unannoted_data_num']
 
 ## 内存中缓存的位置
 CACHE_PATH_DATA_FOR_UNET = "dataset/Cache/data_for_unet/"

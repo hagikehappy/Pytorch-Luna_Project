@@ -1,0 +1,20 @@
+{
+    "UNet_total_epochs": 100,
+    "UNet_save_path": "save/model/UNet/",
+    "UNet_dataset_cache_path": "dataset/Cache/data_for_unet/",
+    "UNet_annoted_dataset_cache_path": "dataset/Cache/data_for_unet/annoted_slices/",
+    "UNet_unannoted_dataset_cache_path": "dataset/Cache/data_for_unet/unannoted_slices/",
+    "annoted_data_num": 1159,
+    "unannoted_data_num": 5499,
+    "train_batch_size": 10,
+    "learning_rate": 10,
+    "device": "cuda",
+    "optimizer_type": "SGD",
+    "optimizer_parameter": {
+        "momentum": 0.99,
+        "dampening": 0.5,
+        "weight_decay": 0.001
+    },
+    "loss_type": "Dice_Loss",
+    "model_save_path": "save/model/"
+}

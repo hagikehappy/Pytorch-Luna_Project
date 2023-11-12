@@ -15,11 +15,11 @@ def test_unet_basic_use():
     CT_Transform.show_one_ct_tensor(annoted_label, 2)
 
     unet.eval()
-    result_train = unet(annoted_input)
-    result_eval = unet(annoted_raw)
+    result_train = unet(annoted_input.unsqueeze(0))
+    result_eval = unet(annoted_raw.unsqueeze(0))
     print(result_train.shape)
-    CT_Transform.show_one_ct_tensor(result_train, 2)
-    CT_Transform.show_one_ct_tensor(result_eval, 2)
+    CT_Transform.show_one_ct_tensor(result_train.squeeze(0), 2)
+    CT_Transform.show_one_ct_tensor(result_eval.squeeze(0), 2)
 
 
 

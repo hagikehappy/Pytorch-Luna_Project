@@ -167,10 +167,10 @@ class CT_All_Candidates:
         ## 创建一个全1的张量作为掩码
         mask = torch.ones_like(tensor_t)
         ## 将指定范围之外的部分置0
-        mask[:, :, :, :w_range[0]] = 0
-        mask[:, :, :, w_range[1]:] = 0
-        mask[:, :, :h_range[0], :] = 0
-        mask[:, :, h_range[1]:, :] = 0
+        mask[:, :, :w_range[0]] = 0
+        mask[:, :, w_range[1]:] = 0
+        mask[:, :h_range[0], :] = 0
+        mask[:, h_range[1]:, :] = 0
         ## 使用掩码将输入张量中指定范围之外的部分置0
         tensor_t *= mask
         tensor_t += (1 - mask) * -1
@@ -184,10 +184,10 @@ class CT_All_Candidates:
         ## 创建一个全1的张量作为掩码
         mask = torch.ones_like(tensor_t)
         ## 将指定范围之外的部分置0
-        mask[:, :, :, :w_range[0]] = 0
-        mask[:, :, :, w_range[1]:] = 0
-        mask[:, :, :h_range[0], :] = 0
-        mask[:, :, h_range[1]:, :] = 0
+        mask[:, :, :w_range[0]] = 0
+        mask[:, :, w_range[1]:] = 0
+        mask[:, :h_range[0], :] = 0
+        mask[:, h_range[1]:, :] = 0
         ## 使用掩码将输入张量中指定范围之外的部分置0
         tensor_t *= mask
         return tensor_t
@@ -246,7 +246,7 @@ class CT_All_Candidates:
         ## 这里在制作UNET输入级训练信息，所有输入级训练图全部需要在Z方向裁剪和padding，输入级操作并不区分是否为annoted类型
         ## 注意，测试信息也有与训练数据预处理方式完全一致，仅因分割数据集而分开
         ## 但是评估信息并没有掩码处理，而是整个图像直接输入；对于高度假阳性的过滤放在二级模型上
-        ct_slices_t = ct_graphic.ct_tensor[:,
+        ct_slices_t = ct_graphic.ct_tensor[
                       c_n_checked - EXTERN_VAR.SLICES_THICKNESS_HALF:
                       c_n_checked + EXTERN_VAR.SLICES_THICKNESS - EXTERN_VAR.SLICES_THICKNESS_HALF,
                       :, :]
@@ -256,10 +256,10 @@ class CT_All_Candidates:
         # print()
 
         ## 这里在制作输出级的原始切割
-        ct_slices_output = ct_slices_raw[:, :, :,
+        ct_slices_output = ct_slices_raw[:, :,
                       w_n_checked - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF:
                       w_n_checked + EXTERN_VAR.SLICES_X_OUTPUT_LENGTH - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF]
-        ct_slices_output = ct_slices_output[:, :,
+        ct_slices_output = ct_slices_output[:,
                       h_n_checked - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF:
                       h_n_checked + EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF,
                       :]
@@ -324,13 +324,13 @@ class CT_All_Candidates:
         for i in range(diameter):
             for j in range(diameter):
                 for k in range(EXTERN_VAR.SLICES_THICKNESS):
-                    if ct_slices_label[0, k, h_begin + j, w_begin + i] <= EXTERN_VAR.UNET_LOW_THRESHOLD:
-                        ct_slices_label[0, k, h_begin + j, w_begin + i] = 0.0
-                    elif ct_slices_label[0, k, h_begin + j, w_begin + i] >= EXTERN_VAR.UNET_HIGH_THRESHOLD:
-                        ct_slices_label[0, k, h_begin + j, w_begin + i] = 1.0
+                    if ct_slices_label[k, h_begin + j, w_begin + i] <= EXTERN_VAR.UNET_LOW_THRESHOLD:
+                        ct_slices_label[k, h_begin + j, w_begin + i] = 0.0
+                    elif ct_slices_label[k, h_begin + j, w_begin + i] >= EXTERN_VAR.UNET_HIGH_THRESHOLD:
+                        ct_slices_label[k, h_begin + j, w_begin + i] = 1.0
                     else:
-                        ct_slices_label[0, k, h_begin + j, w_begin + i] = \
-                            self._Normalize(ct_slices_label[0, k, h_begin + j, w_begin + i],
+                        ct_slices_label[k, h_begin + j, w_begin + i] = \
+                            self._Normalize(ct_slices_label[k, h_begin + j, w_begin + i],
                                         (EXTERN_VAR.UNET_LOW_THRESHOLD, EXTERN_VAR.UNET_HIGH_THRESHOLD),
                                         (0.5, 1))
 
@@ -397,7 +397,7 @@ class CT_Transform:
     def show_one_ct_tensor(ct_tensor, slice_pos=53):
         """显示一个numpy格式的CT切片图"""
         # 取一个切片来观察，输入默认为(N, C, H, W)
-        ct_array = ct_tensor.squeeze(0).detach().numpy()
+        ct_array = ct_tensor.detach().numpy()
         ct_one_slice = ct_array[slice_pos, :, :]
         plt.imshow(ct_one_slice, cmap='gray', vmin=0, vmax=1)
         plt.show()
@@ -406,10 +406,9 @@ class CT_Transform:
     def transform_one_sample_to_tensor_for_train(ct_path=None, ct_image=None):
         """将一个CT图转化为tensor并收集相关信息"""
         ct_array = CT_Transform.transform_one_sample_to_array_for_train(ct_path=ct_path, ct_image=ct_image)
-        ## Pytorch 输入向量需要为 (N, C, H, W)，这里将Z轴作为通道输入
+        ## Pytorch 输入向量需要为 (C, H, W)，这里将Z轴作为通道输入
         ## 后续需要拆分 C 通道为适合输入的数量(这里选为10,因为绝大部分结节的直径都比10个切片小)
         ct_tensor = torch.from_numpy(ct_array)    # (C, H, W)
-        ct_tensor = ct_tensor.unsqueeze(0)     # (N, C, H, W)
         ## ct_tensor的结果从[-1000,1000]归一化至[0, 1]，一满足一般的pytorch灰度图像输入要求
         ct_tensor = (ct_tensor + 1000) / 2000
         ## 如果归一化至[-1, 1]的情况
