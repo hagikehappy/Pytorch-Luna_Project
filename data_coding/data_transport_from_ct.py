@@ -361,11 +361,13 @@ class CT_All_Candidates:
             CT_Transform.show_one_ct_tensor(raw_t, 2)
             CT_Transform.show_one_ct_tensor(input_t, 2)
             CT_Transform.show_one_ct_tensor(label_t, 2)
+            print(raw_t.shape, input_t.shape, label_t.shape)
         else:
             raw_t = Get_CT_Candidate(index, os.path.join(data_path, "raw"))
             output_t = Get_CT_Candidate(index, os.path.join(data_path, "output"))
             CT_Transform.show_one_ct_tensor(raw_t, 2)
             CT_Transform.show_one_ct_tensor(output_t, 2)
+            print(raw_t.shape, output_t.shape)
 
 
 class CT_Transform:
@@ -395,7 +397,7 @@ class CT_Transform:
     def show_one_ct_tensor(ct_tensor, slice_pos=53):
         """显示一个numpy格式的CT切片图"""
         # 取一个切片来观察，输入默认为(N, C, H, W)
-        ct_array = ct_tensor.squeeze(0).numpy()
+        ct_array = ct_tensor.squeeze(0).detach().numpy()
         ct_one_slice = ct_array[slice_pos, :, :]
         plt.imshow(ct_one_slice, cmap='gray', vmin=0, vmax=1)
         plt.show()
@@ -412,7 +414,7 @@ class CT_Transform:
         ct_tensor = (ct_tensor + 1000) / 2000
         ## 如果归一化至[-1, 1]的情况
         # ct_tensor = ct_tensor / 1000
-        transform = transforms.CenterCrop((EXTERN_VAR.SLICES_CROP_Y_LENGTH, EXTERN_VAR.SLICES_CROP_X_LENGTH))
+        transform = transforms.CenterCrop(EXTERN_VAR.SLICES_CROP_X_LENGTH)
         ct_tensor = transform(ct_tensor)
         # print("ct_tensor_ori:", ct_tensor_ori.shape)
         # print("ct_tensor:",ct_tensor.shape)

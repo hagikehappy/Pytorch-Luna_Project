@@ -3,6 +3,7 @@ from test.test_data_coding.test_data_transport_from_ct import test_data_transpor
 from test.test_data_coding.test_data_transport_from_ct import test_combination_of_ct_graphics_and_csv
 from test.test_data_coding.test_data_transport_from_ct import test_tensor_cache
 from test.test_data_coding.test_data_transport_from_ct import test_cache_mem
+from test.test_model.test_unet import test_unet_basic_use
 
 
 if __name__ == '__main__':
@@ -10,5 +11,7 @@ if __name__ == '__main__':
     # test_data_cache()
     # test_data_transport_from_ct()
     # test_combination_of_ct_graphics_and_csv()
-    test_tensor_cache()
+    # test_tensor_cache()
     # test_cache_mem()
+    # test_unet_basic_use()
+

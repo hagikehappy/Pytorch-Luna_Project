@@ -15,7 +15,7 @@ def Get_CT_Candidate(index, path):
     return joblib.load(cache_file)
 
 @functools.lru_cache(maxsize=EXTERN_VAR.CACHE_MAXSIZE_ANNOTED, typed=True)
-def Get_CT_Annoted_Input(index):
+def Get_CT_Annoted_INPUT(index):
     """从内存缓存获取"""
     index_str = "{:06}".format(index)
     cache_file = os.path.join(EXTERN_VAR.CACHE_PATH_ANNOTED_INPUT, index_str)
@@ -54,7 +54,7 @@ def Flush_All_CT_Data_To_Mem():
     print("\nFlush_All_CT_Data_To_Mem:")
     counter = DynamicCounter(EXTERN_VAR.CACHE_MAXSIZE_ANNOTED, "CT_Annoted_INPUT", 100)
     for i in range(EXTERN_VAR.CACHE_MAXSIZE_ANNOTED):
-        Get_CT_Annoted_Input(i)
+        Get_CT_Annoted_INPUT(i)
         counter.increment()
     counter = DynamicCounter(EXTERN_VAR.CACHE_MAXSIZE_ANNOTED, "CT_Annoted_LABEL", 100)
     for i in range(EXTERN_VAR.CACHE_MAXSIZE_ANNOTED):
