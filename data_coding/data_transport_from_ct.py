@@ -18,6 +18,7 @@ import config.extern_var as EXTERN_VAR
 import pandas as pd
 from tools.tool import *
 from data_coding.data_cache import *
+from config.extern_var import settings
 
 
 
@@ -73,6 +74,7 @@ class CT_All_Candidates:
         self.ct_unannoted_slices_output_cache_path = self.ct_unannoted_slices_cache_path + "output"
         self.ct_unannoted_slices_raw_cache_path = self.ct_unannoted_slices_cache_path + "raw"
         self.ct_unannoted_slices_note_cache_path = self.ct_unannoted_slices_cache_path + "note"
+        self.device = torch.device(settings['device'])
 
     def Extract_Info_From_CSV(self):
         """从表单中提取所有的候选结节信息并整合，最终全部缓存"""
@@ -159,35 +161,36 @@ class CT_All_Candidates:
             x_n = int(x_n)
         return x_n
 
-    def _set_to_minus_one_with_range(self, tensor_t, w_range, h_range):
+    def _set_to_threshold_with_range(self, tensor_t, w_range, h_range, device):
         """
         该代码直接改变原张量，用于将范围之外的张量置-1，保留区域包含前边界，不包含后边界，
         输入张量认为是(N, C, H, W)格式的，range为元组类型
         """
         ## 创建一个全1的张量作为掩码
-        mask = torch.ones_like(tensor_t)
-        ## 将指定范围之外的部分置0
-        mask[:, :, :w_range[0]] = 0
-        mask[:, :, w_range[1]:] = 0
-        mask[:, :h_range[0], :] = 0
-        mask[:, h_range[1]:, :] = 0
-        ## 使用掩码将输入张量中指定范围之外的部分置0
-        tensor_t *= mask
-        tensor_t += (1 - mask) * -1
+        device = torch.device(device)
+        mask = torch.ones_like(tensor_t).to(device)
+        ## 将掩码塑形
+        mask[:, :, :w_range[0]] = EXTERN_VAR.UNET_LOW_THRESHOLD
+        mask[:, :, w_range[1]:] = EXTERN_VAR.UNET_LOW_THRESHOLD
+        mask[:, :h_range[0], :] = EXTERN_VAR.UNET_LOW_THRESHOLD
+        mask[:, h_range[1]:, :] = EXTERN_VAR.UNET_LOW_THRESHOLD
+        ## 使用掩码将输入张量中指定范围之外的部分进行软阈值处理
+        tensor_t = (tensor_t + 1.0) * mask - 1.0
         return tensor_t
 
-    def _set_to_zero_with_range(self, tensor_t, w_range, h_range):
+    def _set_to_zero_with_range(self, tensor_t, w_range, h_range, k_layer, device):
         """
         该代码直接改变原张量，用于将范围之外的张量置0，保留区域包含前边界，不包含后边界，
         输入张量认为是(N, C, H, W)格式的，range为元组类型
         """
         ## 创建一个全1的张量作为掩码
-        mask = torch.ones_like(tensor_t)
+        device = torch.device(device)
+        mask = torch.ones_like(tensor_t).to(device)
         ## 将指定范围之外的部分置0
-        mask[:, :, :w_range[0]] = 0
-        mask[:, :, w_range[1]:] = 0
-        mask[:, :h_range[0], :] = 0
-        mask[:, h_range[1]:, :] = 0
+        mask[k_layer, :, :w_range[0]] = 0
+        mask[k_layer, :, w_range[1]:] = 0
+        mask[k_layer, :h_range[0], :] = 0
+        mask[k_layer, h_range[1]:, :] = 0
         ## 使用掩码将输入张量中指定范围之外的部分置0
         tensor_t *= mask
         return tensor_t
@@ -283,11 +286,12 @@ class CT_All_Candidates:
             Save_CT_Candidate(self.ct_annoted_slices_length, self.ct_annoted_slices_raw_cache_path,
                               ct_slices_raw)
             ## 进行padding
-            ct_slices_input = self._set_to_minus_one_with_range(ct_slices_raw,
+            ct_slices_input = self._set_to_threshold_with_range(ct_slices_raw,
                             (w_n_checked - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF,
                              w_n_checked + EXTERN_VAR.SLICES_X_OUTPUT_LENGTH - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF),
                             (h_n_checked - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF,
-                             h_n_checked + EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF))
+                             h_n_checked + EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF),
+                             "cuda")
             ## 缓存padding后的输入数据
             Save_CT_Candidate(self.ct_annoted_slices_length, self.ct_annoted_slices_input_cache_path,
                               ct_slices_input)
@@ -314,25 +318,100 @@ class CT_All_Candidates:
 
     def Make_Annoted_Infomation(self, w_n, h_n, diameter, ct_slices_output):
         """制作输入Unet的标注信息"""
-        radius = int(diameter / 2)
-        w_begin = w_n - radius
-        h_begin = h_n - radius
-        ct_slices_label = self._set_to_zero_with_range(ct_slices_output,
-                                                        (w_begin, w_begin + diameter),
-                                                        (h_begin, h_begin + diameter))
-        ## 将 < 阈值的部分置-1，高于阈值部分不变
-        for i in range(diameter):
-            for j in range(diameter):
-                for k in range(EXTERN_VAR.SLICES_THICKNESS):
-                    if ct_slices_label[k, h_begin + j, w_begin + i] <= EXTERN_VAR.UNET_LOW_THRESHOLD:
-                        ct_slices_label[k, h_begin + j, w_begin + i] = 0.0
-                    elif ct_slices_label[k, h_begin + j, w_begin + i] >= EXTERN_VAR.UNET_HIGH_THRESHOLD:
-                        ct_slices_label[k, h_begin + j, w_begin + i] = 1.0
+        ## 这里弃用了原先的用直径去获得最终值的方法
+        # radius = int(diameter / 2)
+        # w_begin = w_n - radius
+        # h_begin = h_n - radius
+        # ct_slices_label = self._set_to_zero_with_range(ct_slices_output,
+        #                                                 (w_begin, w_begin + diameter),
+        #                                                 (h_begin, h_begin + diameter))
+        # ## 将 < 阈值的部分置-1，高于阈值部分不变
+        # for i in range(diameter):
+        #     for j in range(diameter):
+        #         for k in range(EXTERN_VAR.SLICES_THICKNESS):
+        #             if ct_slices_label[k, h_begin + j, w_begin + i] <= EXTERN_VAR.UNET_LOW_THRESHOLD:
+        #                 ct_slices_label[k, h_begin + j, w_begin + i] = 0.0
+        #             elif ct_slices_label[k, h_begin + j, w_begin + i] >= EXTERN_VAR.UNET_HIGH_THRESHOLD:
+        #                 ct_slices_label[k, h_begin + j, w_begin + i] = 1.0
+        #             else:
+        #                 ct_slices_label[k, h_begin + j, w_begin + i] = \
+        #                     self._Normalize(ct_slices_label[k, h_begin + j, w_begin + i],
+        #                                 (EXTERN_VAR.UNET_LOW_THRESHOLD, EXTERN_VAR.UNET_HIGH_THRESHOLD),
+        #                                 (0.5, 1))
+
+        ## 下面是使用从中心开始延伸搜索的方法，这种方法可以避免将肺壁记入最终的标注中
+        ct_slices_label = torch.ones_like(ct_slices_output).to(self.device)
+        ct_slices_label = self._Normalize(ct_slices_label, (-1, 1), (0, 1))
+        for k in range(EXTERN_VAR.SLICES_THICKNESS):
+            label_radius_tmp = [2, 2]
+            label_radius_ori = [2, 2]
+            label_radius = [2, 2]   # [w, h]
+            for m in [0, 1]:
+                ## [0]位置总是目标位置
+                label_radius_tmp[0], label_radius_tmp[1] = 2, 0
+                try:
+                    while ct_slices_output[k, h_n + label_radius_tmp[1-m], w_n + label_radius_tmp[m]] \
+                            >= EXTERN_VAR.UNET_LOW_THRESHOLD and \
+                            ct_slices_output[k, h_n - label_radius_tmp[1-m], w_n - label_radius_tmp[m]] \
+                            >= EXTERN_VAR.UNET_LOW_THRESHOLD:
+                        label_radius_tmp[0] += 1
+                except IndexError:
+                    label_radius_tmp[0] -= 1
+                ## 记录未进行进一步扩展时的原始半径
+                label_radius_ori[m] = label_radius_tmp[0]
+                for n in range(EXTERN_VAR.UNET_DIAMETER_EXPANSION + 1):
+                    try:
+                        label_radius_tmp[0] += 1
+                        ct_slices_output[k, h_n + label_radius_tmp[1 - m], w_n + label_radius_tmp[m]]
+                    except IndexError:
+                        include_max = 0
+                        break
                     else:
-                        ct_slices_label[k, h_begin + j, w_begin + i] = \
-                            self._Normalize(ct_slices_label[k, h_begin + j, w_begin + i],
-                                        (EXTERN_VAR.UNET_LOW_THRESHOLD, EXTERN_VAR.UNET_HIGH_THRESHOLD),
-                                        (0.5, 1))
+                        include_max = 1
+                label_radius_tmp[0] -= 1
+                ## 保存对应探测结果
+                label_radius[m] = label_radius_tmp[0]
+
+            ## 从output中裁剪出第k层的label掩码板
+            ct_slices_label = self._set_to_zero_with_range(ct_slices_output,
+                                                           (w_n - label_radius[0], w_n + label_radius[0] + include_max),
+                                                           (h_n - label_radius[1], h_n + label_radius[1] + include_max),
+                                                           k, "cuda")
+            ## 进行进一步的掩码板细化，去除边角料
+            radius_border = (label_radius_ori[0] + label_radius_ori[1]) / 2
+            for j in range(h_n - label_radius[1], h_n + label_radius[1] + include_max):
+                try:
+                    i = int((radius_border**2 - (j-h_n)**2)**0.5)
+                except TypeError:
+                    i = 0
+                i_small = w_n - i
+                i_big = w_n + i
+                ## 处理低界的那一部分
+                all_zero_flag = 0
+                for m in range(i_small, w_n - label_radius[0] - 1, -1):
+                    try:
+                        if all_zero_flag == 0:
+                            if ct_slices_output[k, j, m] < EXTERN_VAR.UNET_LOW_THRESHOLD and \
+                                    ct_slices_output[k, j, m-1] < EXTERN_VAR.UNET_LOW_THRESHOLD:
+                                all_zero_flag = 1
+                                ct_slices_label[k, j, m] = 0.0
+                        else:
+                            ct_slices_label[k, j, m] = 0.0
+                    except IndexError:
+                        break
+                ## 处理高界那一部分
+                all_zero_flag = 0
+                for m in range(i_big, w_n + label_radius[0] + include_max, 1):
+                    try:
+                        if all_zero_flag == 0:
+                            if ct_slices_output[k, j, m] < EXTERN_VAR.UNET_LOW_THRESHOLD and \
+                                    ct_slices_output[k, j, m+1] < EXTERN_VAR.UNET_LOW_THRESHOLD:
+                                all_zero_flag = 1
+                                ct_slices_label[k, j, m] = 0.0
+                        else:
+                            ct_slices_label[k, j, m] = 0.0
+                    except IndexError:
+                        break
 
         return ct_slices_label
 
@@ -358,15 +437,15 @@ class CT_All_Candidates:
             raw_t = Get_CT_Candidate(index, os.path.join(data_path, "raw"))
             input_t = Get_CT_Candidate(index, os.path.join(data_path, "input"))
             label_t = Get_CT_Candidate(index, os.path.join(data_path, "label"))
-            CT_Transform.show_one_ct_tensor(raw_t, 2)
-            CT_Transform.show_one_ct_tensor(input_t, 2)
-            CT_Transform.show_one_ct_tensor(label_t, 2)
+            CT_Transform.show_one_ct_tensor(raw_t, EXTERN_VAR.SLICES_THICKNESS_HALF)
+            CT_Transform.show_one_ct_tensor(input_t, EXTERN_VAR.SLICES_THICKNESS_HALF)
+            CT_Transform.show_one_ct_tensor(label_t, EXTERN_VAR.SLICES_THICKNESS_HALF, ct_scale=(0, 1))
             print(raw_t.shape, input_t.shape, label_t.shape)
         else:
             raw_t = Get_CT_Candidate(index, os.path.join(data_path, "raw"))
             output_t = Get_CT_Candidate(index, os.path.join(data_path, "output"))
-            CT_Transform.show_one_ct_tensor(raw_t, 2)
-            CT_Transform.show_one_ct_tensor(output_t, 2)
+            CT_Transform.show_one_ct_tensor(raw_t, EXTERN_VAR.SLICES_THICKNESS_HALF)
+            CT_Transform.show_one_ct_tensor(output_t, EXTERN_VAR.SLICES_THICKNESS_HALF)
             print(raw_t.shape, output_t.shape)
 
 
@@ -394,12 +473,14 @@ class CT_Transform:
         plt.show()
 
     @staticmethod
-    def show_one_ct_tensor(ct_tensor, slice_pos=53):
+    def show_one_ct_tensor(ct_tensor, slice_pos=53, ct_scale=(-1, 1)):
         """显示一个numpy格式的CT切片图"""
         # 取一个切片来观察，输入默认为(N, C, H, W)
-        ct_array = ct_tensor.detach().numpy()
+        if (ct_tensor.dim() == 4):
+            ct_tensor = ct_tensor.squeeze(0)
+        ct_array = ct_tensor.to(torch.device("cpu")).detach().numpy()
         ct_one_slice = ct_array[slice_pos, :, :]
-        plt.imshow(ct_one_slice, cmap='gray', vmin=0, vmax=1)
+        plt.imshow(ct_one_slice, cmap='gray', vmin=ct_scale[0], vmax=ct_scale[1])
         plt.show()
 
     @staticmethod
@@ -409,18 +490,16 @@ class CT_Transform:
         ## Pytorch 输入向量需要为 (C, H, W)，这里将Z轴作为通道输入
         ## 后续需要拆分 C 通道为适合输入的数量(这里选为10,因为绝大部分结节的直径都比10个切片小)
         ct_tensor = torch.from_numpy(ct_array)    # (C, H, W)
-        ## ct_tensor的结果从[-1000,1000]归一化至[0, 1]，一满足一般的pytorch灰度图像输入要求
-        ct_tensor = (ct_tensor + 1000) / 2000
-        ## 如果归一化至[-1, 1]的情况
-        # ct_tensor = ct_tensor / 1000
+        ## ct_tensor的结果从[-1000,1000]归一化至[0, 1]
+        # ct_tensor = (ct_tensor + 1000) / 2000
+        ## 归一化至[-1, 1]的情况，这样后面的激活函数ReLU的处理才是有效的
+        ct_tensor = ct_tensor.to(torch.device(settings['device']))
+        ct_tensor = ct_tensor / 1000
         transform = transforms.CenterCrop(EXTERN_VAR.SLICES_CROP_X_LENGTH)
         ct_tensor = transform(ct_tensor)
         # print("ct_tensor_ori:", ct_tensor_ori.shape)
         # print("ct_tensor:",ct_tensor.shape)
         return ct_tensor
-
-
-
 
 
 

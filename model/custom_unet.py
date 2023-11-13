@@ -5,7 +5,6 @@ import config.extern_var as EXTERN_VAR
 from torchvision import transforms
 
 
-
 class ParallelCode_UNetBlock(nn.Module):
     """该部分为Unet的平行变化过程模块"""
 
@@ -122,7 +121,6 @@ class CustomUNet(nn.Module):
         output = F.softmax(output, dim=1)
 
         return output  # 返回经过softmax处理后的结果。
-
 
 
 if __name__ == "__main__":

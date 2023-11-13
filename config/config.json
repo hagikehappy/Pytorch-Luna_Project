@@ -1,5 +1,5 @@
 {
-    "UNet_total_epochs": 100,
+    "UNet_total_epochs": 5,
     "UNet_save_path": "save/model/UNet/",
     "UNet_dataset_cache_path": "dataset/Cache/data_for_unet/",
     "UNet_annoted_dataset_cache_path": "dataset/Cache/data_for_unet/annoted_slices/",
@@ -7,7 +7,7 @@
     "annoted_data_num": 1159,
     "unannoted_data_num": 5499,
     "train_batch_size": 10,
-    "learning_rate": 10,
+    "learning_rate": 0.001,
     "device": "cuda",
     "optimizer_type": "SGD",
     "optimizer_parameter": {

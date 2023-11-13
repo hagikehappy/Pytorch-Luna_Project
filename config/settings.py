@@ -31,7 +31,7 @@ class Settings:
 
     def write_config(self):
         """刷新配置"""
-        self.config['UNet_total_epochs'] = 100
+        self.config['UNet_total_epochs'] = 5
         self.config['UNet_save_path'] = "save/model/UNet"
         self.config['UNet_dataset_cache_path'] = "dataset/Cache/data_for_unet/"
         self.config['UNet_annoted_dataset_cache_path'] = self.config['UNet_dataset_cache_path'] + "annoted_slices/"
@@ -41,7 +41,7 @@ class Settings:
         with open(self.config['UNet_unannoted_dataset_cache_path'] + "note", "r") as f:
             self.config['unannoted_data_num'] = int(f.readline())
         self.config['train_batch_size'] = 10
-        self.config['learning_rate'] = 10
+        self.config['learning_rate'] = 0.001
         self.config['device'] = "cuda"
         self.config['optimizer_type'] = Optimizer_Type.SGD.name
         if self.config['optimizer_type'] == Optimizer_Type.SGD.name:
@@ -71,6 +71,7 @@ class Settings:
         for conf, value in self.config.items():
             print(f"{conf}: {value}")
         print("\n")
+
 
     def check_config(self):
         """检查配置是否齐全"""

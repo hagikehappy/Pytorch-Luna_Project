@@ -6,6 +6,7 @@ import joblib
 import functools
 import config.extern_var as extern_var
 from tools.tool import *
+import torch
 
 
 def Get_CT_Candidate(index, path):
@@ -76,7 +77,8 @@ def Flush_All_CT_Data_To_Mem():
 
 
 def Save_CT_Candidate(index, path, data, *arg, **kwargs):
-    """存储可用CT数据的"""
+    """存储可用CT数据的缓存"""
+    data = data.to(torch.device("cpu"))
     index_str = "{:06}".format(index)
     cache_file = os.path.join(path, index_str)
     joblib.dump(data, cache_file)
