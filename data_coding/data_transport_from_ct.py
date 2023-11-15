@@ -170,10 +170,10 @@ class CT_All_Candidates:
         device = torch.device(device)
         mask = torch.ones_like(tensor_t).to(device)
         ## 将掩码塑形
-        mask[:, :, :w_range[0]] = EXTERN_VAR.UNET_LOW_THRESHOLD
-        mask[:, :, w_range[1]:] = EXTERN_VAR.UNET_LOW_THRESHOLD
-        mask[:, :h_range[0], :] = EXTERN_VAR.UNET_LOW_THRESHOLD
-        mask[:, h_range[1]:, :] = EXTERN_VAR.UNET_LOW_THRESHOLD
+        mask[:, :, :w_range[0]] = EXTERN_VAR.UNET_LOW_THRESHOLD_RATE
+        mask[:, :, w_range[1]:] = EXTERN_VAR.UNET_LOW_THRESHOLD_RATE
+        mask[:, :h_range[0], :] = EXTERN_VAR.UNET_LOW_THRESHOLD_RATE
+        mask[:, h_range[1]:, :] = EXTERN_VAR.UNET_LOW_THRESHOLD_RATE
         ## 使用掩码将输入张量中指定范围之外的部分进行软阈值处理
         tensor_t = (tensor_t + 1.0) * mask - 1.0
         return tensor_t
@@ -267,6 +267,7 @@ class CT_All_Candidates:
                       h_n_checked + EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF,
                       :]
         ct_slices_output = ct_slices_output.contiguous()
+        ct_slices_output = self._Normalize(ct_slices_output, (-1, 1), (0, 1))
 
         # CT_Transform.show_one_ct_tensor(ct_slices_output, 2)
         # print()
@@ -295,7 +296,6 @@ class CT_All_Candidates:
             ## 缓存padding后的输入数据
             Save_CT_Candidate(self.ct_annoted_slices_length, self.ct_annoted_slices_input_cache_path,
                               ct_slices_input)
-
             ## 处理label
             ## 这里认为 X, Y 尺度是一样的，将坐标转换为64*64内的坐标
             if diameter > EXTERN_VAR.SLICES_X_OUTPUT_LENGTH:
@@ -304,15 +304,20 @@ class CT_All_Candidates:
             h_n -= h_n_checked - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF
             w_n_checked = self._check_border(w_n, diameter, EXTERN_VAR.SLICES_X_OUTPUT_LENGTH)
             h_n_checked = self._check_border(h_n, diameter, EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH)
-            ct_slices_label = self.Make_Annoted_Infomation(w_n_checked, h_n_checked, diameter, ct_slices_output)
+
+            ct_slices_label = self.Make_Annoted_Infomation(w_n_checked, h_n_checked, diameter, ct_slices_output.clone())
             Save_CT_Candidate(self.ct_annoted_slices_length, self.ct_annoted_slices_label_cache_path, ct_slices_label)
 
+            # CT_Transform.show_one_ct_tensor(ct_slices_raw, 2)
+            CT_Transform.show_one_ct_tensor(ct_slices_output, EXTERN_VAR.SLICES_THICKNESS_HALF, (0, 1))
+            CT_Transform.show_one_ct_tensor(ct_slices_label, EXTERN_VAR.SLICES_THICKNESS_HALF, (0, 1))
             # for k in range(EXTERN_VAR.SLICES_THICKNESS):
             #     CT_Transform.show_one_ct_tensor(ct_slices_label, k)
+            # print()
             # print(ct_slices_raw.shape)
             # print(ct_slices_output.shape)
             # print(ct_slices_label.shape)
-            # print()
+            print()
 
             self.ct_annoted_slices_length += 1
 
@@ -341,19 +346,19 @@ class CT_All_Candidates:
 
         ## 下面是使用从中心开始延伸搜索的方法，这种方法可以避免将肺壁记入最终的标注中
         ct_slices_label = torch.ones_like(ct_slices_output).to(self.device)
-        ct_slices_label = self._Normalize(ct_slices_label, (-1, 1), (0, 1))
+        search_begin = int(diameter / 4)
         for k in range(EXTERN_VAR.SLICES_THICKNESS):
             label_radius_tmp = [2, 2]
             label_radius_ori = [2, 2]
             label_radius = [2, 2]   # [w, h]
             for m in [0, 1]:
                 ## [0]位置总是目标位置
-                label_radius_tmp[0], label_radius_tmp[1] = 2, 0
+                label_radius_tmp[0], label_radius_tmp[1] = 2+search_begin, 0
                 try:
                     while ct_slices_output[k, h_n + label_radius_tmp[1-m], w_n + label_radius_tmp[m]] \
-                            >= EXTERN_VAR.UNET_LOW_THRESHOLD and \
+                            >= EXTERN_VAR.UNET_LOW_THRESHOLD_RATE and \
                             ct_slices_output[k, h_n - label_radius_tmp[1-m], w_n - label_radius_tmp[m]] \
-                            >= EXTERN_VAR.UNET_LOW_THRESHOLD:
+                            >= EXTERN_VAR.UNET_LOW_THRESHOLD_RATE:
                         label_radius_tmp[0] += 1
                 except IndexError:
                     label_radius_tmp[0] -= 1
@@ -377,8 +382,10 @@ class CT_All_Candidates:
                                                            (w_n - label_radius[0], w_n + label_radius[0] + include_max),
                                                            (h_n - label_radius[1], h_n + label_radius[1] + include_max),
                                                            k, "cuda")
+
             ## 进行进一步的掩码板细化，去除边角料
             radius_border = (label_radius_ori[0] + label_radius_ori[1]) / 2
+            ## 横向检查联通
             for j in range(h_n - label_radius[1], h_n + label_radius[1] + include_max):
                 try:
                     i = int((radius_border**2 - (j-h_n)**2)**0.5)
@@ -391,8 +398,10 @@ class CT_All_Candidates:
                 for m in range(i_small, w_n - label_radius[0] - 1, -1):
                     try:
                         if all_zero_flag == 0:
-                            if ct_slices_output[k, j, m] < EXTERN_VAR.UNET_LOW_THRESHOLD and \
-                                    ct_slices_output[k, j, m-1] < EXTERN_VAR.UNET_LOW_THRESHOLD:
+                            if (ct_slices_output[k, j, m] < EXTERN_VAR.UNET_LOW_THRESHOLD_RATE and \
+                                    ct_slices_output[k, j, m-1] < EXTERN_VAR.UNET_LOW_THRESHOLD_RATE) or \
+                                (ct_slices_output[k, j, m-1] > ct_slices_output[k, j, m] and \
+                                    ct_slices_output[k, j, m-2] > ct_slices_output[k, j, m-1]):
                                 all_zero_flag = 1
                                 ct_slices_label[k, j, m] = 0.0
                         else:
@@ -404,12 +413,52 @@ class CT_All_Candidates:
                 for m in range(i_big, w_n + label_radius[0] + include_max, 1):
                     try:
                         if all_zero_flag == 0:
-                            if ct_slices_output[k, j, m] < EXTERN_VAR.UNET_LOW_THRESHOLD and \
-                                    ct_slices_output[k, j, m+1] < EXTERN_VAR.UNET_LOW_THRESHOLD:
+                            if (ct_slices_output[k, j, m] < EXTERN_VAR.UNET_LOW_THRESHOLD_RATE and \
+                                    ct_slices_output[k, j, m+1] < EXTERN_VAR.UNET_LOW_THRESHOLD_RATE) or \
+                                (ct_slices_output[k, j, m+1] > ct_slices_output[k, j, m] and \
+                                    ct_slices_output[k, j, m+2] > ct_slices_output[k, j, m+1]):
                                 all_zero_flag = 1
                                 ct_slices_label[k, j, m] = 0.0
                         else:
                             ct_slices_label[k, j, m] = 0.0
+                    except IndexError:
+                        break
+            ## 纵向检查联通
+            for i in range(w_n - label_radius[0], w_n + label_radius[0] + include_max):
+                try:
+                    j = int((radius_border**2 - (i-w_n)**2)**0.5)
+                except TypeError:
+                    j = 0
+                j_small = h_n - j
+                j_big = h_n + j
+                ## 处理低界的那一部分
+                all_zero_flag = 0
+                for m in range(j_small, h_n - label_radius[1] - 1, -1):
+                    try:
+                        if all_zero_flag == 0:
+                            if (ct_slices_label[k, m, i] < EXTERN_VAR.UNET_LOW_THRESHOLD_RATE and \
+                                    ct_slices_label[k, m-1, i] < EXTERN_VAR.UNET_LOW_THRESHOLD_RATE) or \
+                                (ct_slices_label[k, m-1, i] > ct_slices_label[k, m, i] and \
+                                    ct_slices_label[k, m-2, i] > ct_slices_label[k, m-1, i]):
+                                all_zero_flag = 1
+                                ct_slices_label[k, m, i] = 0.0
+                        else:
+                            ct_slices_label[k, m, i] = 0.0
+                    except IndexError:
+                        break
+                ## 处理高界那一部分
+                all_zero_flag = 0
+                for m in range(j_big, h_n + label_radius[1] + include_max, 1):
+                    try:
+                        if all_zero_flag == 0:
+                            if (ct_slices_label[k, m, i] < EXTERN_VAR.UNET_LOW_THRESHOLD_RATE and \
+                                    ct_slices_label[k, m+1, i] < EXTERN_VAR.UNET_LOW_THRESHOLD_RATE) or \
+                                (ct_slices_label[k, m+1, i] > ct_slices_label[k, m, i] and \
+                                    ct_slices_label[k, m+2, i] > ct_slices_label[k, m+1, i]):
+                                all_zero_flag = 1
+                                ct_slices_label[k, m, i] = 0.0
+                        else:
+                            ct_slices_label[k, m, i] = 0.0
                     except IndexError:
                         break
 
