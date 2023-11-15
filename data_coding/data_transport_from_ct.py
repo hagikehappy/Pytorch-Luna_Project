@@ -293,6 +293,7 @@ class CT_All_Candidates:
                             (h_n_checked - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF,
                              h_n_checked + EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF),
                              "cuda")
+
             ## 缓存padding后的输入数据
             Save_CT_Candidate(self.ct_annoted_slices_length, self.ct_annoted_slices_input_cache_path,
                               ct_slices_input)
@@ -308,7 +309,8 @@ class CT_All_Candidates:
             ct_slices_label = self.Make_Annoted_Infomation(w_n_checked, h_n_checked, diameter, ct_slices_output.clone())
             Save_CT_Candidate(self.ct_annoted_slices_length, self.ct_annoted_slices_label_cache_path, ct_slices_label)
 
-            # CT_Transform.show_one_ct_tensor(ct_slices_raw, 2)
+            CT_Transform.show_one_ct_tensor(ct_slices_raw, EXTERN_VAR.SLICES_THICKNESS_HALF, (-1, 1))
+            CT_Transform.show_one_ct_tensor(ct_slices_input, EXTERN_VAR.SLICES_THICKNESS_HALF, (-1, 1))
             CT_Transform.show_one_ct_tensor(ct_slices_output, EXTERN_VAR.SLICES_THICKNESS_HALF, (0, 1))
             CT_Transform.show_one_ct_tensor(ct_slices_label, EXTERN_VAR.SLICES_THICKNESS_HALF, (0, 1))
             # for k in range(EXTERN_VAR.SLICES_THICKNESS):
@@ -462,6 +464,7 @@ class CT_All_Candidates:
                     except IndexError:
                         break
 
+        ct_slices_label
         return ct_slices_label
 
     def _Normalize(self, val, ori, dest):
