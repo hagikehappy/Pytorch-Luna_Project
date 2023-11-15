@@ -40,7 +40,7 @@ class Dice_Loss(nn.Module):
 class UNet_Train_Dataset(Dataset):
     def __init__(self):
         """初始化"""
-        self.length = settings['annoted_data_num']
+        self.length = settings['annotated_data_num']
 
     def __len__(self):
         return self.length

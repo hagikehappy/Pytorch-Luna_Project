@@ -37,14 +37,14 @@ def Get_CT_Annoted_RAW(index):
     return joblib.load(cache_file)
 
 @functools.lru_cache(maxsize=extern_var.CACHE_MAXSIZE_UNANNOTED, typed=True)
-def Get_CT_Unannoted_OUTPUT(index):
+def Get_CT_Unannotated_OUTPUT(index):
     """从内存缓存获取"""
     index_str = "{:06}".format(index)
     cache_file = os.path.join(extern_var.CACHE_PATH_UNANNOTED_OUTPUT, index_str)
     return joblib.load(cache_file)
 
 @functools.lru_cache(maxsize=extern_var.CACHE_MAXSIZE_UNANNOTED, typed=True)
-def Get_CT_Unannoted_RAW(index):
+def Get_CT_Unannotated_RAW(index):
     """从内存缓存获取"""
     index_str = "{:06}".format(index)
     cache_file = os.path.join(extern_var.CACHE_PATH_UNANNOTED_RAW, index_str)
@@ -65,13 +65,13 @@ def Flush_All_CT_Data_To_Mem():
     for i in range(extern_var.CACHE_MAXSIZE_ANNOTED):
         Get_CT_Annoted_RAW(i)
         counter.increment()
-    # counter = DynamicCounter(EXTERN_VAR.CACHE_MAXSIZE_UNANNOTED, "CT_Unannoted_OUTPUT", 100)
+    # counter = DynamicCounter(EXTERN_VAR.CACHE_MAXSIZE_UNANNOTED, "CT_Unannotated_OUTPUT", 100)
     # for i in range(EXTERN_VAR.CACHE_MAXSIZE_UNANNOTED):
-    #     Get_CT_Unannoted_OUTPUT(i)
+    #     Get_CT_Unannotated_OUTPUT(i)
     #     counter.increment()
-    # counter = DynamicCounter(EXTERN_VAR.CACHE_MAXSIZE_UNANNOTED, "CT_Unannoted_RAW", 100)
+    # counter = DynamicCounter(EXTERN_VAR.CACHE_MAXSIZE_UNANNOTED, "CT_Unannotated_RAW", 100)
     # for i in range(EXTERN_VAR.CACHE_MAXSIZE_UNANNOTED):
-    #     Get_CT_Unannoted_RAW(i)
+    #     Get_CT_Unannotated_RAW(i)
     #     counter.increment()
     print()
 

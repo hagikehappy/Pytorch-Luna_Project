@@ -62,18 +62,18 @@ class CT_All_Candidates:
         self.annotations_list_current_length = 0
         self.ct_graphics_paths = []
         self.ct_graphics_length = 0
-        self.ct_annoted_slices_length = 0
-        self.ct_unannoted_slices_length = 0
+        self.ct_annotated_slices_length = 0
+        self.ct_unannotated_slices_length = 0
         self.ct_slices_cache_path = "dataset/Cache/data_for_unet/"
-        self.ct_annoted_slices_cache_path = self.ct_slices_cache_path + "annoted_slices/"
-        self.ct_annoted_slices_input_cache_path = self.ct_annoted_slices_cache_path + "input"
-        self.ct_annoted_slices_label_cache_path = self.ct_annoted_slices_cache_path + "label"
-        self.ct_annoted_slices_raw_cache_path = self.ct_annoted_slices_cache_path + "raw"
-        self.ct_annoted_slices_note_cache_path = self.ct_annoted_slices_cache_path + "note"
-        self.ct_unannoted_slices_cache_path = self.ct_slices_cache_path + "unannoted_slices/"
-        self.ct_unannoted_slices_output_cache_path = self.ct_unannoted_slices_cache_path + "output"
-        self.ct_unannoted_slices_raw_cache_path = self.ct_unannoted_slices_cache_path + "raw"
-        self.ct_unannoted_slices_note_cache_path = self.ct_unannoted_slices_cache_path + "note"
+        self.ct_annotated_slices_cache_path = self.ct_slices_cache_path + "annotated_slices/"
+        self.ct_annotated_slices_input_cache_path = self.ct_annotated_slices_cache_path + "input"
+        self.ct_annotated_slices_label_cache_path = self.ct_annotated_slices_cache_path + "label"
+        self.ct_annotated_slices_raw_cache_path = self.ct_annotated_slices_cache_path + "raw"
+        self.ct_annotated_slices_note_cache_path = self.ct_annotated_slices_cache_path + "note"
+        self.ct_unannotated_slices_cache_path = self.ct_slices_cache_path + "unannotated_slices/"
+        self.ct_unannotated_slices_output_cache_path = self.ct_unannotated_slices_cache_path + "output"
+        self.ct_unannotated_slices_raw_cache_path = self.ct_unannotated_slices_cache_path + "raw"
+        self.ct_unannotated_slices_note_cache_path = self.ct_unannotated_slices_cache_path + "note"
         self.device = torch.device(settings['device'])
 
     def Extract_Info_From_CSV(self):
@@ -109,8 +109,8 @@ class CT_All_Candidates:
         # print(self.ct_graphics_paths)
 
         ## 遍历所有图像，逐个遍历列表解析对应的图像
-        index_annoted = 0
-        index_unannoted = 0
+        index_annotated = 0
+        index_unannotated = 0
         j = 0
         counter = DynamicCounter(self.candidates_list_length, "Extract Progression", 100)
         for i in range(self.ct_graphics_length):
@@ -136,10 +136,10 @@ class CT_All_Candidates:
                     break
             self.annotations_list_current_pointer = k
 
-        with open(self.ct_annoted_slices_note_cache_path, 'w') as f:
-            f.write(f"{self.ct_annoted_slices_length}")
-        with open(self.ct_unannoted_slices_note_cache_path, 'w') as f:
-            f.write(f"{self.ct_unannoted_slices_length}")
+        with open(self.ct_annotated_slices_note_cache_path, 'w') as f:
+            f.write(f"{self.ct_annotated_slices_length}")
+        with open(self.ct_unannotated_slices_note_cache_path, 'w') as f:
+            f.write(f"{self.ct_unannotated_slices_length}")
 
     def _check_border(self, x_n, min_length, max_border):
         """此函数用于检查是否越界并取为整形，要求输入的x_n为整形"""
@@ -197,7 +197,7 @@ class CT_All_Candidates:
 
     def Dealing_One_Candidate(self, i, j, ct_graphic):
         """填充单个候选结节的具体信息"""
-        ## 区分annoted和unannoted，如果是annoted则直接从annoted列表中取数据，这样数据更精确
+        ## 区分annotated和unannotated，如果是annotated则直接从annotated列表中取数据，这样数据更精确
         w_n_raw = self.candidates_list[j][1]
         h_n_raw = self.candidates_list[j][2]
         c_n_raw = self.candidates_list[j][3]
@@ -206,7 +206,7 @@ class CT_All_Candidates:
                 return
         else:
             k = 0
-            whether_annoted = False
+            whether_annotated = False
             for k in range(self.annotations_list_current_length):
                 if abs(w_n_raw -
                        self.annotations_list[self.annotations_list_current_pointer + k][1]) <= 5.0 and \
@@ -221,10 +221,10 @@ class CT_All_Candidates:
                                / ct_graphic.spacing[0]
                     diameter = self._int_border(diameter)
                     diameter += EXTERN_VAR.UNET_DIAMETER_EXPANSION
-                    whether_annoted = True
+                    whether_annotated = True
                     break
             ## 如果不存在匹配数据则直接返回
-            if whether_annoted is False:
+            if whether_annotated is False:
                 return
 
         ## 转化CSV标注信息中的[Z, Y, X]坐标为[C, H, W]
@@ -246,7 +246,7 @@ class CT_All_Candidates:
         ## 这样可以让UNET更好的关注结节部分   (N, C, H, W)，即(N, Z, Y, X)，大小为64*64
         # print(ct_graphic.ct_tensor.shape)
 
-        ## 这里在制作UNET输入级训练信息，所有输入级训练图全部需要在Z方向裁剪和padding，输入级操作并不区分是否为annoted类型
+        ## 这里在制作UNET输入级训练信息，所有输入级训练图全部需要在Z方向裁剪和padding，输入级操作并不区分是否为annotated类型
         ## 注意，测试信息也有与训练数据预处理方式完全一致，仅因分割数据集而分开
         ## 但是评估信息并没有掩码处理，而是整个图像直接输入；对于高度假阳性的过滤放在二级模型上
         ct_slices_t = ct_graphic.ct_tensor[
@@ -273,18 +273,18 @@ class CT_All_Candidates:
         # print()
         # print(ct_slices_t.shape)
 
-        ## 区分annoted和unannoted两类数据
-        ## 这是unannoted类型，直接保存就行
+        ## 区分annotated和unannotated两类数据
+        ## 这是unannotated类型，直接保存就行
         if self.candidates_list[j][4] == 0:
-            Save_CT_Candidate(self.ct_unannoted_slices_length, self.ct_unannoted_slices_raw_cache_path,
+            Save_CT_Candidate(self.ct_unannotated_slices_length, self.ct_unannotated_slices_raw_cache_path,
                               ct_slices_raw)
-            Save_CT_Candidate(self.ct_unannoted_slices_length, self.ct_unannoted_slices_output_cache_path,
+            Save_CT_Candidate(self.ct_unannotated_slices_length, self.ct_unannotated_slices_output_cache_path,
                               ct_slices_output)
-            self.ct_unannoted_slices_length += 1
-        ## 这是annoted类型
+            self.ct_unannotated_slices_length += 1
+        ## 这是annotated类型
         else:
             ## 缓存原始数据
-            Save_CT_Candidate(self.ct_annoted_slices_length, self.ct_annoted_slices_raw_cache_path,
+            Save_CT_Candidate(self.ct_annotated_slices_length, self.ct_annotated_slices_raw_cache_path,
                               ct_slices_raw)
             ## 进行padding
             ct_slices_input = self._set_to_threshold_with_range(ct_slices_raw,
@@ -295,7 +295,7 @@ class CT_All_Candidates:
                              "cuda")
 
             ## 缓存padding后的输入数据
-            Save_CT_Candidate(self.ct_annoted_slices_length, self.ct_annoted_slices_input_cache_path,
+            Save_CT_Candidate(self.ct_annotated_slices_length, self.ct_annotated_slices_input_cache_path,
                               ct_slices_input)
             ## 处理label
             ## 这里认为 X, Y 尺度是一样的，将坐标转换为64*64内的坐标
@@ -307,7 +307,7 @@ class CT_All_Candidates:
             h_n_checked = self._check_border(h_n, diameter, EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH)
 
             ct_slices_label = self.Make_Annoted_Infomation(w_n_checked, h_n_checked, diameter, ct_slices_output.clone())
-            Save_CT_Candidate(self.ct_annoted_slices_length, self.ct_annoted_slices_label_cache_path, ct_slices_label)
+            Save_CT_Candidate(self.ct_annotated_slices_length, self.ct_annotated_slices_label_cache_path, ct_slices_label)
 
             CT_Transform.show_one_ct_tensor(ct_slices_raw, EXTERN_VAR.SLICES_THICKNESS_HALF, (-1, 1))
             CT_Transform.show_one_ct_tensor(ct_slices_input, EXTERN_VAR.SLICES_THICKNESS_HALF, (-1, 1))
@@ -321,7 +321,7 @@ class CT_All_Candidates:
             # print(ct_slices_label.shape)
             print()
 
-            self.ct_annoted_slices_length += 1
+            self.ct_annotated_slices_length += 1
 
     def Make_Annoted_Infomation(self, w_n, h_n, diameter, ct_slices_output):
         """制作输入Unet的标注信息"""
@@ -485,7 +485,7 @@ class CT_All_Candidates:
             random.seed(int(time.time()))
             index = random.randint(0, total_num - 1)
         print(f"Now We are showing {type_path}, index: {index}")
-        if type_path == "annoted_slices":
+        if type_path == "annotated_slices":
             raw_t = Get_CT_Candidate(index, os.path.join(data_path, "raw"))
             input_t = Get_CT_Candidate(index, os.path.join(data_path, "input"))
             label_t = Get_CT_Candidate(index, os.path.join(data_path, "label"))
