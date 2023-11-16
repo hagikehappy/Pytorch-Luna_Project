@@ -56,12 +56,14 @@ class CT_All_Candidates:
         self.candidates_list_length = 0
         self.annotations_list = []
         self.annotations_list_length = 0
-        self.annotations_list_current_pointer = 0
-        self.annotations_list_current_length = 0
         self.ct_graphics_paths = []
         self.ct_graphics_length = 0
-        self.ct_caches_length = 0
         self.device = torch.device(settings['device'])
+
+        ## 需每次复位的信息
+        self.annotations_list_current_pointer = 0
+        self.annotations_list_current_length = 0
+        self.ct_caches_length = 0
 
         self.cache_path = None
         self.cache_input_path = None
@@ -90,6 +92,12 @@ class CT_All_Candidates:
 
     def Make_Cache_for_UNet(self, cache_type):
         """制作指定类型的缓存，有train, eval两种情形"""
+
+        ## 复位部分信息
+        self.annotations_list_current_pointer = 0
+        self.annotations_list_current_length = 0
+        self.ct_caches_length = 0
+
         self.cache_path = from_cache_type_to_parameter(cache_type)[0]
         if cache_type == dataset_cache_type.train_UNet:
             self.cache_input_path = from_cache_type_to_parameter(dataset_cache_type.train_UNet_input)[0]
@@ -302,16 +310,10 @@ class CT_All_Candidates:
         ct_slices_label = self.Make_Annoted_Infomation(w_n_checked, h_n_checked, diameter, ct_slices_output.clone())
         Save_CT_Candidate(self.ct_caches_length, dataset_cache_type.train_UNet_label, ct_slices_label)
 
-        CT_Transform.show_one_ct_tensor(ct_slices_raw, settings[Config_Item.UNet_train_thickness_half], (-1, 1))
-        CT_Transform.show_one_ct_tensor(ct_slices_output, settings[Config_Item.UNet_train_thickness_half], (0, 1))
-        CT_Transform.show_one_ct_tensor(ct_slices_label, settings[Config_Item.UNet_train_thickness_half], (0, 1))
-        # for k in range(EXTERN_VAR.SLICES_THICKNESS):
-        #     CT_Transform.show_one_ct_tensor(ct_slices_label, k)
+        # CT_Transform.show_one_ct_tensor(ct_slices_raw, settings[Config_Item.UNet_train_thickness_half], (-1, 1))
+        # CT_Transform.show_one_ct_tensor(ct_slices_output, settings[Config_Item.UNet_train_thickness_half], (0, 1))
+        # CT_Transform.show_one_ct_tensor(ct_slices_label, settings[Config_Item.UNet_train_thickness_half], (0, 1))
         # print()
-        # print(ct_slices_raw.shape)
-        # print(ct_slices_output.shape)
-        # print(ct_slices_label.shape)
-        print()
 
         self.ct_caches_length += 1
 
@@ -511,7 +513,7 @@ class CT_Transform:
     def show_one_ct_tensor(ct_tensor, slice_pos=53, ct_scale=(-1, 1)):
         """显示一个numpy格式的CT切片图"""
         # 取一个切片来观察，输入默认为(N, C, H, W)
-        if (ct_tensor.dim() == 4):
+        if ct_tensor.dim() == 4:
             ct_tensor = ct_tensor.squeeze(0)
         ct_array = ct_tensor.to(torch.device("cpu")).detach().numpy()
         ct_one_slice = ct_array[slice_pos, :, :]
