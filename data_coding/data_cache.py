@@ -28,7 +28,7 @@ class dataset_cache_type(Enum):
     train_type_annotated = settings[Config_Item.train_type_annotated_dataset_cache]
     train_type_unannotated = settings[Config_Item.train_type_unannotated_dataset_cache]
 
-    eval_UNet = settings[Config_Item.eval_UNet_dataset_num]
+    eval_UNet = settings[Config_Item.eval_UNet_dataset_cache]
     eval_UNet_input = settings[Config_Item.eval_UNet_input_dataset_cache]
     eval_UNet_label = settings[Config_Item.eval_UNet_label_dataset_cache]
     eval_type = settings[Config_Item.eval_type_dataset_cache]

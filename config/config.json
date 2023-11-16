@@ -115,5 +115,15 @@
         "weight_decay": 0.001
     },
     "UNet_loss_type": "Dice_Loss",
-    "UNet_loss_parameter": {}
+    "UNet_loss_parameter": {},
+    "raw_data_size": 512,
+    "raw_data_cropped_size": 40,
+    "raw_data_centercrop_size": 432,
+    "UNet_train_input_final_size": 48,
+    "UNet_train_input_cache_size": 72,
+    "UNet_train_input_cache_size_half": 36,
+    "UNet_train_thickness": 3,
+    "UNet_train_thickness_half": 1,
+    "UNet_low_threshold_rate": 0.15,
+    "UNet_Radius_Expansion": 0
 }

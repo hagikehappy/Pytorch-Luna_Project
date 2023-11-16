@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import config.extern_var as EXTERN_VAR
+from config.extern_var import settings
+from config.settings import *
 from torchvision import transforms
 
 
@@ -37,7 +38,8 @@ class ParallelCode_UNetBlock(nn.Module):
 class CustomUNet(nn.Module):
     """该Unet模型的期待输入为[N, 5, 444, 444], 输出为[N, 5, 64, 64]"""
 
-    def __init__(self, in_channels=EXTERN_VAR.SLICES_THICKNESS, out_channels=EXTERN_VAR.SLICES_THICKNESS):
+    def __init__(self, in_channels=settings[Config_Item.UNet_train_thickness],
+                 out_channels=settings[Config_Item.UNet_train_thickness]):
         super(CustomUNet, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -46,7 +48,7 @@ class CustomUNet(nn.Module):
         self.input_bn = nn.BatchNorm2d(self.in_channels)
 
         ## 编码器部分
-        self.size_x1 = EXTERN_VAR.SLICES_CROP_X_LENGTH
+        self.size_x1 = settings[Config_Item.UNet_train_input_final_size]
         self.down_code1 = ParallelCode_UNetBlock(in_channels=self.in_channels, mid_channels=64, out_channels=64)
         self.size_x1 -= 4
         self.maxpool1 = nn.MaxPool2d(kernel_size=2, stride=2)

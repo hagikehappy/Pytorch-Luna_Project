@@ -81,6 +81,19 @@ class Config_Item(Enum):
     UNet_loss_type = 77
     UNet_loss_parameter = 78
 
+    ## Data Configure
+    raw_data_size = 101
+    raw_data_centercrop_size = 102
+    raw_data_cropped_size = 103
+    UNet_train_input_cache_size = 104
+    UNet_train_input_cache_size_half = 105
+    UNet_train_input_final_size = 106
+    UNet_train_thickness = 107
+    UNet_train_thickness_half = 108
+    UNet_low_threshold_rate = 109
+    UNet_Radius_Expansion = 110
+
+
 
 class Settings:
     """设置类"""
@@ -227,6 +240,24 @@ class Settings:
         else:
             raise abort.SettingsAbort(f"There is no such Loss as {Config_Item.UNet_loss_type.name}!!!")
 
+        ## Data Configure
+        ## for UNet
+        self.config_dict[Config_Item.raw_data_size.name] = 512
+        self.config_dict[Config_Item.raw_data_cropped_size.name] = 40
+        self.config_dict[Config_Item.raw_data_centercrop_size.name] = \
+            self.config_dict[Config_Item.raw_data_size.name] - \
+            2 * self.config_dict[Config_Item.raw_data_cropped_size.name]
+        self.config_dict[Config_Item.UNet_train_input_final_size.name] = 48
+        self.config_dict[Config_Item.UNet_train_input_cache_size.name] = \
+            self.config_dict[Config_Item.UNet_train_input_final_size.name] // 2 * 3
+        self.config_dict[Config_Item.UNet_train_input_cache_size_half.name] = \
+            self.config_dict[Config_Item.UNet_train_input_cache_size.name] // 2
+        self.config_dict[Config_Item.UNet_train_thickness.name] = 3
+        self.config_dict[Config_Item.UNet_train_thickness_half.name] = \
+            self.config_dict[Config_Item.UNet_train_thickness.name] // 2
+        self.config_dict[Config_Item.UNet_low_threshold_rate.name] = 0.15
+        self.config_dict[Config_Item.UNet_Radius_Expansion.name] = 0
+
         with open(self.config_path, "w") as f:
             json.dump(self.config_dict, f, indent=4)
 
@@ -252,7 +283,7 @@ class Settings:
         self.config_path = Path('config/config.json')
         self.config_dict = {}
         self.config_set = set()
-        self.config_list = [0 for _ in range(100)]
+        self.config_list = [0 for _ in range(200)]
         self.total_cache_num = 0
 
         if self.config_path.exists() and not update:
@@ -264,7 +295,6 @@ class Settings:
         for key, value in self.config_dict.items():
             self.config_set.add(key)
             self.config_list[Config_Item[key].value] = value
-        print(type(self.config_list))
 
         print("\nConfigure:")
         for conf, value in self.config_dict.items():

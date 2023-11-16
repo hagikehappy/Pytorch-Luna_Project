@@ -1,6 +1,5 @@
 """本文件存储用于将原始ct图像转为可被模型直接使用的全部相关函数"""
 
-
 import csv
 import glob
 
@@ -24,13 +23,14 @@ from config.extern_var import settings
 
 class CT_One_Graphic:
     """用于存储单张CT图像本身及各种附带信息的类"""
+
     def __init__(self, ct_path):
         """初始化时就将所有信息读入并转化为数组"""
         ct_image = sitk.ReadImage(ct_path)
         ## Take an Example At Notes Below
         self.seriesuid, _ = os.path.splitext(os.path.basename(ct_path))
-        self.dimsize = ct_image.GetSize()   ## eg: (512, 512, 133)
-        self.spacing = ct_image.GetSpacing()    ## eg: (0.78125, 0.78125, 2.5)
+        self.dimsize = ct_image.GetSize()  ## eg: (512, 512, 133)
+        self.spacing = ct_image.GetSpacing()  ## eg: (0.78125, 0.78125, 2.5)
         self.offset = ct_image.GetOrigin()  ## eg: (-191.199997, -185.5, -359.0)
         self.ct_tensor = CT_Transform.transform_one_sample_to_tensor_for_train(ct_image=ct_image)
         # print("uid:", self.seriesuid)
@@ -61,16 +61,6 @@ class CT_All_Candidates:
         self.ct_graphics_paths = []
         self.ct_graphics_length = 0
         self.ct_caches_length = 0
-        # self.ct_slices_cache = "dataset/Cache/data_for_unet/"
-        # self.ct_annotated_slices_cache = self.ct_slices_cache + "annotated_slices/"
-        # self.ct_annotated_slices_input_cache = self.ct_annotated_slices_cache + "input"
-        # self.ct_annotated_slices_label_cache = self.ct_annotated_slices_cache + "label"
-        # self.ct_annotated_slices_raw_cache = self.ct_annotated_slices_cache + "raw"
-        # self.ct_annotated_slices_note_cache = self.ct_annotated_slices_cache + "note"
-        # self.ct_unannotated_slices_cache = self.ct_slices_cache + "unannotated_slices/"
-        # self.ct_unannotated_slices_output_cache = self.ct_unannotated_slices_cache + "output"
-        # self.ct_unannotated_slices_raw_cache = self.ct_unannotated_slices_cache + "raw"
-        # self.ct_unannotated_slices_note_cache = self.ct_unannotated_slices_cache + "note"
         self.device = torch.device(settings['device'])
 
         self.cache_path = None
@@ -116,7 +106,8 @@ class CT_All_Candidates:
 
         self.mhd_list = []
         for subset in range(subset_begin, subset_end):
-            self.mhd_list += glob.glob(os.path.join(settings[Config_Item.dataset_path], "subset"+str(subset), "*.mhd"))
+            self.mhd_list += glob.glob(
+                os.path.join(settings[Config_Item.dataset_path], "subset" + str(subset), "*.mhd"))
         self.ct_graphics_paths = [(os.path.splitext(os.path.basename(path))[0], path) for path in self.mhd_list]
         self.ct_graphics_paths.sort(key=lambda x: x[0])
         self.ct_graphics_length = len(self.ct_graphics_paths)
@@ -130,7 +121,17 @@ class CT_All_Candidates:
             ## 利用二者排序一致的特点
             ct_graphic = CT_One_Graphic(self.ct_graphics_paths[i][1])
             ## 寻找在annotations_list中对应的位置
+            if ct_graphic.seriesuid < self.annotations_list[self.annotations_list_current_pointer][0]:
+                continue
+            try:
+                while self.annotations_list[self.annotations_list_current_pointer][0] < ct_graphic.seriesuid:
+                    self.annotations_list_current_pointer += 1
+                if ct_graphic.seriesuid < self.annotations_list[self.annotations_list_current_pointer][0]:
+                    continue
+            except IndexError:
+                break
             k = self.annotations_list_current_pointer
+            ## 已设置过看门狗
             while self.annotations_list[k][0] == ct_graphic.seriesuid:
                 k += 1
             self.annotations_list_current_length = k - self.annotations_list_current_pointer
@@ -146,11 +147,13 @@ class CT_All_Candidates:
                         if self.candidates_list[j][0] != self.ct_graphics_paths[i][0]:
                             break
                     break
+                else:
+                    j += 1
             self.annotations_list_current_pointer = k
 
-        with open(os.path.join(settings[self.cache_input_path][0], "note"), 'w') as f:
+        with open(os.path.join(self.cache_input_path, "note"), 'w') as f:
             f.write(f"{self.ct_caches_length}")
-        with open(os.path.join(settings[self.cache_label_path][0], "note"), 'w') as f:
+        with open(os.path.join(self.cache_label_path, "note"), 'w') as f:
             f.write(f"{self.ct_caches_length}")
 
     def _check_border(self, x_n, min_length, max_border):
@@ -182,10 +185,10 @@ class CT_All_Candidates:
         device = torch.device(device)
         mask = torch.ones_like(tensor_t).to(device)
         ## 将掩码塑形
-        mask[:, :, :w_range[0]] = EXTERN_VAR.UNET_LOW_THRESHOLD_RATE
-        mask[:, :, w_range[1]:] = EXTERN_VAR.UNET_LOW_THRESHOLD_RATE
-        mask[:, :h_range[0], :] = EXTERN_VAR.UNET_LOW_THRESHOLD_RATE
-        mask[:, h_range[1]:, :] = EXTERN_VAR.UNET_LOW_THRESHOLD_RATE
+        mask[:, :, :w_range[0]] = settings[Config_Item.UNet_low_threshold_rate]
+        mask[:, :, w_range[1]:] = settings[Config_Item.UNet_low_threshold_rate]
+        mask[:, :h_range[0], :] = settings[Config_Item.UNet_low_threshold_rate]
+        mask[:, h_range[1]:, :] = settings[Config_Item.UNet_low_threshold_rate]
         ## 使用掩码将输入张量中指定范围之外的部分进行软阈值处理
         tensor_t = (tensor_t + 1.0) * mask - 1.0
         return tensor_t
@@ -212,45 +215,43 @@ class CT_All_Candidates:
         w_n_raw = self.candidates_list[j][1]
         h_n_raw = self.candidates_list[j][2]
         c_n_raw = self.candidates_list[j][3]
-        if self.candidates_list[j][4] == 0:
-            return
-        else:
-            k = 0
-            whether_annotated = False
-            for k in range(self.annotations_list_current_length):
-                if abs(w_n_raw -
-                       self.annotations_list[self.annotations_list_current_pointer + k][1]) <= 5.0 and \
+
+        whether_annotated = False
+        for k in range(self.annotations_list_current_length):
+            if abs(w_n_raw -
+                   self.annotations_list[self.annotations_list_current_pointer + k][1]) <= 5.0 and \
                     abs(h_n_raw -
                         self.annotations_list[self.annotations_list_current_pointer + k][2]) <= 5.0 and \
                     abs(c_n_raw -
                         self.annotations_list[self.annotations_list_current_pointer + k][3]) <= 5.0:
-                    w_n_raw = self.annotations_list[self.annotations_list_current_pointer + k][1]
-                    h_n_raw = self.annotations_list[self.annotations_list_current_pointer + k][2]
-                    c_n_raw = self.annotations_list[self.annotations_list_current_pointer + k][3]
-                    diameter = self.annotations_list[self.annotations_list_current_pointer + k][4] \
-                               / ct_graphic.spacing[0]
-                    diameter = self._int_border(diameter)
-                    diameter += EXTERN_VAR.UNET_DIAMETER_EXPANSION
-                    whether_annotated = True
-                    break
-            ## 如果不存在匹配数据则直接返回
-            if whether_annotated is False:
-                return
+                w_n_raw = self.annotations_list[self.annotations_list_current_pointer + k][1]
+                h_n_raw = self.annotations_list[self.annotations_list_current_pointer + k][2]
+                c_n_raw = self.annotations_list[self.annotations_list_current_pointer + k][3]
+                diameter = self.annotations_list[self.annotations_list_current_pointer + k][4] \
+                           / ct_graphic.spacing[0]
+                diameter = self._int_border(diameter)
+                whether_annotated = True
+                break
+        ## 如果不存在匹配数据则直接返回
+        if whether_annotated is False:
+            return
 
         ## 转化CSV标注信息中的[Z, Y, X]坐标为[C, H, W]
         w_n = (w_n_raw - ct_graphic.offset[0]) / ct_graphic.spacing[0] \
-              - EXTERN_VAR.SLICES_X_CROP  ## x
+              - settings[Config_Item.raw_data_cropped_size]  ## x
         w_n = self._int_border(w_n)
         h_n = (h_n_raw - ct_graphic.offset[1]) / ct_graphic.spacing[1] \
-              - EXTERN_VAR.SLICES_Y_CROP  ## y
+              - settings[Config_Item.raw_data_cropped_size]  ## y
         h_n = self._int_border(h_n)
         c_n = (c_n_raw - ct_graphic.offset[2]) / ct_graphic.spacing[2]  ## z
         c_n = self._int_border(c_n)
 
         ## 边界检查并调整
-        w_n_checked = self._check_border(w_n, EXTERN_VAR.SLICES_X_OUTPUT_LENGTH, EXTERN_VAR.SLICES_CROP_X_LENGTH)
-        h_n_checked = self._check_border(h_n, EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH, EXTERN_VAR.SLICES_CROP_Y_LENGTH)
-        c_n_checked = self._check_border(c_n, EXTERN_VAR.SLICES_THICKNESS, ct_graphic.dimsize[2])
+        w_n_checked = self._check_border(w_n, settings[Config_Item.UNet_train_input_cache_size],
+                                         settings[Config_Item.raw_data_centercrop_size])
+        h_n_checked = self._check_border(h_n, settings[Config_Item.UNet_train_input_cache_size],
+                                         settings[Config_Item.raw_data_centercrop_size])
+        c_n_checked = self._check_border(c_n, settings[Config_Item.UNet_train_thickness], ct_graphic.dimsize[2])
 
         ## 取切片，在训练时只将标注部分呈现，其余部分置0（1是语义）（在完全评估时才呈现非标注部分）
         ## 这样可以让UNET更好的关注结节部分   (N, C, H, W)，即(N, Z, Y, X)，大小为64*64
@@ -259,23 +260,25 @@ class CT_All_Candidates:
         ## 这里在制作UNET输入级训练信息，所有输入级训练图全部需要在Z方向裁剪和padding，输入级操作并不区分是否为annotated类型
         ## 注意，测试信息也有与训练数据预处理方式完全一致，仅因分割数据集而分开
         ## 但是评估信息并没有掩码处理，而是整个图像直接输入；对于高度假阳性的过滤放在二级模型上
-        ct_slices_t = ct_graphic.ct_tensor[
-                      c_n_checked - EXTERN_VAR.SLICES_THICKNESS_HALF:
-                      c_n_checked + EXTERN_VAR.SLICES_THICKNESS - EXTERN_VAR.SLICES_THICKNESS_HALF,
-                      :, :]
-        ct_slices_raw = ct_slices_t.contiguous()
+        ct_slices_raw = ct_graphic.ct_tensor[
+                        c_n_checked - settings[Config_Item.UNet_train_thickness_half]:
+                        c_n_checked + settings[Config_Item.UNet_train_thickness] -
+                        settings[Config_Item.UNet_train_thickness_half],
+                        :, :]
+        ct_slices_raw = ct_slices_raw.contiguous()
 
         # CT_Transform.show_one_ct_tensor(ct_slices_raw, 2)
         # print()
 
-        ## 这里在制作输出级的原始切割
+        ## 这里在制作输入级的原始切割
         ct_slices_output = ct_slices_raw[:, :,
-                      w_n_checked - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF:
-                      w_n_checked + EXTERN_VAR.SLICES_X_OUTPUT_LENGTH - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF]
+                           w_n_checked - settings[Config_Item.UNet_train_input_cache_size_half]:
+                           w_n_checked + settings[Config_Item.UNet_train_input_cache_size] -
+                           settings[Config_Item.UNet_train_input_cache_size_half]]
         ct_slices_output = ct_slices_output[:,
-                      h_n_checked - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF:
-                      h_n_checked + EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF,
-                      :]
+                           h_n_checked - settings[Config_Item.UNet_train_input_cache_size_half]:
+                           h_n_checked + settings[Config_Item.UNet_train_input_cache_size] -
+                           settings[Config_Item.UNet_train_input_cache_size_half], :]
         ct_slices_output = ct_slices_output.contiguous()
         ct_slices_output = self._Normalize(ct_slices_output, (-1, 1), (0, 1))
 
@@ -283,55 +286,34 @@ class CT_All_Candidates:
         # print()
         # print(ct_slices_t.shape)
 
-        ## 区分annotated和unannotated两类数据
-        ## 这是unannotated类型，直接保存就行
-        if self.candidates_list[j][4] == 0:
-            Save_CT_Candidate(self.ct_label_length, self.ct_unannotated_slices_raw_cache,
-                              ct_slices_raw)
-            Save_CT_Candidate(self.ct_label_length, self.ct_unannotated_slices_output_cache,
-                              ct_slices_output)
-            self.ct_label_length += 1
-        ## 这是annotated类型
-        else:
-            ## 缓存原始数据
-            Save_CT_Candidate(self.ct_caches_length, self.ct_annotated_slices_raw_cache,
-                              ct_slices_raw)
-            ## 进行padding
-            ct_slices_input = self._set_to_threshold_with_range(ct_slices_raw,
-                            (w_n_checked - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF,
-                             w_n_checked + EXTERN_VAR.SLICES_X_OUTPUT_LENGTH - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF),
-                            (h_n_checked - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF,
-                             h_n_checked + EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF),
-                             "cuda")
+        ## 缓存input数据
+        Save_CT_Candidate(self.ct_caches_length, dataset_cache_type.train_UNet_input, ct_slices_output)
 
-            ## 缓存padding后的输入数据
-            Save_CT_Candidate(self.ct_caches_length, self.ct_annotated_slices_input_cache,
-                              ct_slices_input)
-            ## 处理label
-            ## 这里认为 X, Y 尺度是一样的，将坐标转换为64*64内的坐标
-            if diameter > EXTERN_VAR.SLICES_X_OUTPUT_LENGTH:
-                diameter = EXTERN_VAR.SLICES_X_OUTPUT_LENGTH
-            w_n -= w_n_checked - EXTERN_VAR.SLICES_X_OUTPUT_LENGTH_HALF
-            h_n -= h_n_checked - EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH_HALF
-            w_n_checked = self._check_border(w_n, diameter, EXTERN_VAR.SLICES_X_OUTPUT_LENGTH)
-            h_n_checked = self._check_border(h_n, diameter, EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH)
+        ## 处理label
+        ## 这里认为 X, Y 尺度是一样的，将坐标转换为output内的坐标
+        if diameter > settings[Config_Item.UNet_train_input_cache_size]:
+            diameter = settings[Config_Item.UNet_train_input_cache_size]
+        w_n -= w_n_checked - settings[Config_Item.UNet_train_input_cache_size_half]
+        h_n -= h_n_checked - settings[Config_Item.UNet_train_input_cache_size_half]
+        w_n_checked = self._check_border(w_n, diameter, settings[Config_Item.UNet_train_input_cache_size])
+        h_n_checked = self._check_border(h_n, diameter, settings[Config_Item.UNet_train_input_cache_size])
 
-            ct_slices_label = self.Make_Annoted_Infomation(w_n_checked, h_n_checked, diameter, ct_slices_output.clone())
-            Save_CT_Candidate(self.ct_caches_length, self.ct_annotated_slices_label_cache, ct_slices_label)
+        ## 获得滤去背景的标签并缓存
+        ct_slices_label = self.Make_Annoted_Infomation(w_n_checked, h_n_checked, diameter, ct_slices_output.clone())
+        Save_CT_Candidate(self.ct_caches_length, dataset_cache_type.train_UNet_label, ct_slices_label)
 
-            CT_Transform.show_one_ct_tensor(ct_slices_raw, EXTERN_VAR.SLICES_THICKNESS_HALF, (-1, 1))
-            CT_Transform.show_one_ct_tensor(ct_slices_input, EXTERN_VAR.SLICES_THICKNESS_HALF, (-1, 1))
-            CT_Transform.show_one_ct_tensor(ct_slices_output, EXTERN_VAR.SLICES_THICKNESS_HALF, (0, 1))
-            CT_Transform.show_one_ct_tensor(ct_slices_label, EXTERN_VAR.SLICES_THICKNESS_HALF, (0, 1))
-            # for k in range(EXTERN_VAR.SLICES_THICKNESS):
-            #     CT_Transform.show_one_ct_tensor(ct_slices_label, k)
-            # print()
-            # print(ct_slices_raw.shape)
-            # print(ct_slices_output.shape)
-            # print(ct_slices_label.shape)
-            print()
+        CT_Transform.show_one_ct_tensor(ct_slices_raw, settings[Config_Item.UNet_train_thickness_half], (-1, 1))
+        CT_Transform.show_one_ct_tensor(ct_slices_output, settings[Config_Item.UNet_train_thickness_half], (0, 1))
+        CT_Transform.show_one_ct_tensor(ct_slices_label, settings[Config_Item.UNet_train_thickness_half], (0, 1))
+        # for k in range(EXTERN_VAR.SLICES_THICKNESS):
+        #     CT_Transform.show_one_ct_tensor(ct_slices_label, k)
+        # print()
+        # print(ct_slices_raw.shape)
+        # print(ct_slices_output.shape)
+        # print(ct_slices_label.shape)
+        print()
 
-            self.ct_caches_length += 1
+        self.ct_caches_length += 1
 
     def Make_Annoted_Infomation(self, w_n, h_n, diameter, ct_slices_output):
         """制作输入Unet的标注信息"""
@@ -358,25 +340,25 @@ class CT_All_Candidates:
 
         ## 下面是使用从中心开始延伸搜索的方法，这种方法可以避免将肺壁记入最终的标注中
         ct_slices_label = torch.ones_like(ct_slices_output).to(self.device)
-        search_begin = int(diameter / 4)
-        for k in range(EXTERN_VAR.SLICES_THICKNESS):
+        search_begin = diameter // 4
+        for k in range(settings[Config_Item.UNet_train_thickness]):
             label_radius_tmp = [2, 2]
             label_radius_ori = [2, 2]
-            label_radius = [2, 2]   # [w, h]
+            label_radius = [2, 2]  # [w, h]
             for m in [0, 1]:
                 ## [0]位置总是目标位置
-                label_radius_tmp[0], label_radius_tmp[1] = 2+search_begin, 0
+                label_radius_tmp[0], label_radius_tmp[1] = 2 + search_begin, 0
                 try:
-                    while ct_slices_output[k, h_n + label_radius_tmp[1-m], w_n + label_radius_tmp[m]] \
-                            >= EXTERN_VAR.UNET_LOW_THRESHOLD_RATE and \
-                            ct_slices_output[k, h_n - label_radius_tmp[1-m], w_n - label_radius_tmp[m]] \
-                            >= EXTERN_VAR.UNET_LOW_THRESHOLD_RATE:
+                    while ct_slices_output[k, h_n + label_radius_tmp[1 - m], w_n + label_radius_tmp[m]] \
+                            >= settings[Config_Item.UNet_low_threshold_rate] and \
+                            ct_slices_output[k, h_n - label_radius_tmp[1 - m], w_n - label_radius_tmp[m]] \
+                            >= settings[Config_Item.UNet_low_threshold_rate]:
                         label_radius_tmp[0] += 1
                 except IndexError:
                     label_radius_tmp[0] -= 1
                 ## 记录未进行进一步扩展时的原始半径
                 label_radius_ori[m] = label_radius_tmp[0]
-                for n in range(EXTERN_VAR.UNET_DIAMETER_EXPANSION + 1):
+                for n in range(settings[Config_Item.UNet_Radius_Expansion] + 1):
                     try:
                         label_radius_tmp[0] += 1
                         ct_slices_output[k, h_n + label_radius_tmp[1 - m], w_n + label_radius_tmp[m]]
@@ -400,7 +382,7 @@ class CT_All_Candidates:
             ## 横向检查联通
             for j in range(h_n - label_radius[1], h_n + label_radius[1] + include_max):
                 try:
-                    i = int((radius_border**2 - (j-h_n)**2)**0.5)
+                    i = int((radius_border ** 2 - (j - h_n) ** 2) ** 0.5)
                 except TypeError:
                     i = 0
                 i_small = w_n - i
@@ -410,10 +392,10 @@ class CT_All_Candidates:
                 for m in range(i_small, w_n - label_radius[0] - 1, -1):
                     try:
                         if all_zero_flag == 0:
-                            if (ct_slices_output[k, j, m] < EXTERN_VAR.UNET_LOW_THRESHOLD_RATE and \
-                                    ct_slices_output[k, j, m-1] < EXTERN_VAR.UNET_LOW_THRESHOLD_RATE) or \
-                                (ct_slices_output[k, j, m-1] > ct_slices_output[k, j, m] and \
-                                    ct_slices_output[k, j, m-2] > ct_slices_output[k, j, m-1]):
+                            if (ct_slices_output[k, j, m] < settings[Config_Item.UNet_low_threshold_rate] and
+                                ct_slices_output[k, j, m - 1] < settings[Config_Item.UNet_low_threshold_rate]) or \
+                                    (ct_slices_output[k, j, m] < ct_slices_output[k, j, m - 1] <
+                                     ct_slices_output[k, j, m - 2]):
                                 all_zero_flag = 1
                                 ct_slices_label[k, j, m] = 0.0
                         else:
@@ -425,10 +407,10 @@ class CT_All_Candidates:
                 for m in range(i_big, w_n + label_radius[0] + include_max, 1):
                     try:
                         if all_zero_flag == 0:
-                            if (ct_slices_output[k, j, m] < EXTERN_VAR.UNET_LOW_THRESHOLD_RATE and \
-                                    ct_slices_output[k, j, m+1] < EXTERN_VAR.UNET_LOW_THRESHOLD_RATE) or \
-                                (ct_slices_output[k, j, m+1] > ct_slices_output[k, j, m] and \
-                                    ct_slices_output[k, j, m+2] > ct_slices_output[k, j, m+1]):
+                            if (ct_slices_output[k, j, m] < settings[Config_Item.UNet_low_threshold_rate] and
+                                ct_slices_output[k, j, m + 1] < settings[Config_Item.UNet_low_threshold_rate]) or \
+                                    (ct_slices_output[k, j, m] < ct_slices_output[k, j, m + 1] <
+                                     ct_slices_output[k, j, m + 2]):
                                 all_zero_flag = 1
                                 ct_slices_label[k, j, m] = 0.0
                         else:
@@ -438,7 +420,7 @@ class CT_All_Candidates:
             ## 纵向检查联通
             for i in range(w_n - label_radius[0], w_n + label_radius[0] + include_max):
                 try:
-                    j = int((radius_border**2 - (i-w_n)**2)**0.5)
+                    j = int((radius_border ** 2 - (i - w_n) ** 2) ** 0.5)
                 except TypeError:
                     j = 0
                 j_small = h_n - j
@@ -448,10 +430,10 @@ class CT_All_Candidates:
                 for m in range(j_small, h_n - label_radius[1] - 1, -1):
                     try:
                         if all_zero_flag == 0:
-                            if (ct_slices_label[k, m, i] < EXTERN_VAR.UNET_LOW_THRESHOLD_RATE and \
-                                    ct_slices_label[k, m-1, i] < EXTERN_VAR.UNET_LOW_THRESHOLD_RATE) or \
-                                (ct_slices_label[k, m-1, i] > ct_slices_label[k, m, i] and \
-                                    ct_slices_label[k, m-2, i] > ct_slices_label[k, m-1, i]):
+                            if (ct_slices_label[k, m, i] < settings[Config_Item.UNet_low_threshold_rate] and
+                                ct_slices_label[k, m - 1, i] < settings[Config_Item.UNet_low_threshold_rate]) or \
+                                    (ct_slices_label[k, m, i] < ct_slices_label[k, m - 1, i] <
+                                     ct_slices_label[k, m - 2, i]):
                                 all_zero_flag = 1
                                 ct_slices_label[k, m, i] = 0.0
                         else:
@@ -463,10 +445,10 @@ class CT_All_Candidates:
                 for m in range(j_big, h_n + label_radius[1] + include_max, 1):
                     try:
                         if all_zero_flag == 0:
-                            if (ct_slices_label[k, m, i] < EXTERN_VAR.UNET_LOW_THRESHOLD_RATE and \
-                                    ct_slices_label[k, m+1, i] < EXTERN_VAR.UNET_LOW_THRESHOLD_RATE) or \
-                                (ct_slices_label[k, m+1, i] > ct_slices_label[k, m, i] and \
-                                    ct_slices_label[k, m+2, i] > ct_slices_label[k, m+1, i]):
+                            if (ct_slices_label[k, m, i] < settings[Config_Item.UNet_low_threshold_rate] and
+                                ct_slices_label[k, m + 1, i] < settings[Config_Item.UNet_low_threshold_rate]) or \
+                                    (ct_slices_label[k, m, i] < ct_slices_label[k, m + 1, i] <
+                                     ct_slices_label[k, m + 2, i]):
                                 all_zero_flag = 1
                                 ct_slices_label[k, m, i] = 0.0
                         else:
@@ -474,41 +456,32 @@ class CT_All_Candidates:
                     except IndexError:
                         break
 
-        ct_slices_label
         return ct_slices_label
 
-    def _Normalize(self, val, ori, dest):
+    @staticmethod
+    def _Normalize(val, ori, dest):
         """将数据缩放至指定范围，ori, dest均表示为(min, max)"""
         return (val - ori[0]) * (dest[1] - dest[0]) / (ori[1] - ori[0]) + dest[0]
 
     def Cache_All_CT_Candidates(self):
         """用于将所有最终用于神经网络处理的结节刷入磁盘缓存，此处用Extract_Info_From_CSV实现了"""
         self.Extract_Info_From_CSV()
+        self.Make_Cache_for_UNet(dataset_cache_type.train_UNet)
+        self.Make_Cache_for_UNet(dataset_cache_type.eval_UNet)
         pass
 
-    def Test_Cache(self, type_path, index=None):
+    @staticmethod
+    def Test_UNet_Cache(self, index=None):
         """测试cache的可用性，指定某种cache后从中抽取并显示"""
-        data_path = os.path.join(self.ct_slices_cache, type_path)
         if index is None:
-            with open(os.path.join(data_path, "note"), 'r') as f:
-                total_num = int(f.readline())
             random.seed(int(time.time()))
-            index = random.randint(0, total_num - 1)
-        print(f"Now We are showing {type_path}, index: {index}")
-        if type_path == "annotated_slices":
-            raw_t = Get_CT_Cache(index, os.path.join(data_path, "raw"))
-            input_t = Get_CT_Cache(index, os.path.join(data_path, "input"))
-            label_t = Get_CT_Cache(index, os.path.join(data_path, "label"))
-            CT_Transform.show_one_ct_tensor(raw_t, EXTERN_VAR.SLICES_THICKNESS_HALF)
-            CT_Transform.show_one_ct_tensor(input_t, EXTERN_VAR.SLICES_THICKNESS_HALF)
-            CT_Transform.show_one_ct_tensor(label_t, EXTERN_VAR.SLICES_THICKNESS_HALF, ct_scale=(0, 1))
-            print(raw_t.shape, input_t.shape, label_t.shape)
-        else:
-            raw_t = Get_CT_Cache(index, os.path.join(data_path, "raw"))
-            output_t = Get_CT_Cache(index, os.path.join(data_path, "output"))
-            CT_Transform.show_one_ct_tensor(raw_t, EXTERN_VAR.SLICES_THICKNESS_HALF)
-            CT_Transform.show_one_ct_tensor(output_t, EXTERN_VAR.SLICES_THICKNESS_HALF)
-            print(raw_t.shape, output_t.shape)
+            index = random.randint(0, settings[Config_Item.train_UNet_dataset_num] - 1)
+        print(f"Now We are showing UNet Input and Label, index: {index}")
+        input_t = Get_CT_Cache(index, dataset_cache_type.train_UNet_input)
+        label_t = Get_CT_Cache(index, dataset_cache_type.train_UNet_label)
+        CT_Transform.show_one_ct_tensor(input_t, settings[Config_Item.UNet_train_thickness_half])
+        CT_Transform.show_one_ct_tensor(label_t, settings[Config_Item.UNet_train_thickness_half])
+        print(input_t.shape, label_t.shape)
 
 
 class CT_Transform:
@@ -551,18 +524,17 @@ class CT_Transform:
         ct_array = CT_Transform.transform_one_sample_to_array_for_train(ct_path=ct_path, ct_image=ct_image)
         ## Pytorch 输入向量需要为 (C, H, W)，这里将Z轴作为通道输入
         ## 后续需要拆分 C 通道为适合输入的数量(这里选为10,因为绝大部分结节的直径都比10个切片小)
-        ct_tensor = torch.from_numpy(ct_array)    # (C, H, W)
+        ct_tensor = torch.from_numpy(ct_array)  # (C, H, W)
         ## ct_tensor的结果从[-1000,1000]归一化至[0, 1]
         # ct_tensor = (ct_tensor + 1000) / 2000
         ## 归一化至[-1, 1]的情况，这样后面的激活函数ReLU的处理才是有效的
         ct_tensor = ct_tensor.to(torch.device(settings['device']))
         ct_tensor = ct_tensor / 1000
-        transform = transforms.CenterCrop(EXTERN_VAR.SLICES_CROP_X_LENGTH)
+        transform = transforms.CenterCrop(settings[Config_Item.raw_data_centercrop_size])
         ct_tensor = transform(ct_tensor)
         # print("ct_tensor_ori:", ct_tensor_ori.shape)
         # print("ct_tensor:",ct_tensor.shape)
         return ct_tensor
-
 
 
 if __name__ == '__main__':
