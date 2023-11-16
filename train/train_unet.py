@@ -9,7 +9,7 @@ from config.extern_var import settings
 from config.settings import *
 from data_coding.data_cache import *
 from model.custom_unet import CustomUNet as UNet
-from tools.tool import *
+from utils.timer import *
 from data_coding.data_transport_from_ct import *
 
 

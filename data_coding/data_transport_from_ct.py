@@ -2,6 +2,8 @@
 
 
 import csv
+import glob
+
 import SimpleITK as sitk
 import joblib
 import time
@@ -13,13 +15,11 @@ import matplotlib.pyplot as plt
 import os
 import torch
 from torchvision import transforms
-from data_coding.data_cache_tool import disk_cache
 import config.extern_var as EXTERN_VAR
 import pandas as pd
-from tools.tool import *
+from utils.timer import *
 from data_coding.data_cache import *
 from config.extern_var import settings
-
 
 
 class CT_One_Graphic:
@@ -52,8 +52,6 @@ class CT_All_Candidates:
 
     def __init__(self):
         """初始化"""
-        self.candidates_list_path = "dataset/LUNA-Data/CSVFILES/candidates.csv"
-        self.annotations_list_path = "dataset/LUNA-Data/CSVFILES/annotations.csv"
         self.candidates_list = []
         self.candidates_list_length = 0
         self.annotations_list = []
@@ -62,24 +60,28 @@ class CT_All_Candidates:
         self.annotations_list_current_length = 0
         self.ct_graphics_paths = []
         self.ct_graphics_length = 0
-        self.ct_annotated_slices_length = 0
-        self.ct_unannotated_slices_length = 0
-        self.ct_slices_cache = "dataset/Cache/data_for_unet/"
-        self.ct_annotated_slices_cache = self.ct_slices_cache + "annotated_slices/"
-        self.ct_annotated_slices_input_cache = self.ct_annotated_slices_cache + "input"
-        self.ct_annotated_slices_label_cache = self.ct_annotated_slices_cache + "label"
-        self.ct_annotated_slices_raw_cache = self.ct_annotated_slices_cache + "raw"
-        self.ct_annotated_slices_note_cache = self.ct_annotated_slices_cache + "note"
-        self.ct_unannotated_slices_cache = self.ct_slices_cache + "unannotated_slices/"
-        self.ct_unannotated_slices_output_cache = self.ct_unannotated_slices_cache + "output"
-        self.ct_unannotated_slices_raw_cache = self.ct_unannotated_slices_cache + "raw"
-        self.ct_unannotated_slices_note_cache = self.ct_unannotated_slices_cache + "note"
+        self.ct_caches_length = 0
+        # self.ct_slices_cache = "dataset/Cache/data_for_unet/"
+        # self.ct_annotated_slices_cache = self.ct_slices_cache + "annotated_slices/"
+        # self.ct_annotated_slices_input_cache = self.ct_annotated_slices_cache + "input"
+        # self.ct_annotated_slices_label_cache = self.ct_annotated_slices_cache + "label"
+        # self.ct_annotated_slices_raw_cache = self.ct_annotated_slices_cache + "raw"
+        # self.ct_annotated_slices_note_cache = self.ct_annotated_slices_cache + "note"
+        # self.ct_unannotated_slices_cache = self.ct_slices_cache + "unannotated_slices/"
+        # self.ct_unannotated_slices_output_cache = self.ct_unannotated_slices_cache + "output"
+        # self.ct_unannotated_slices_raw_cache = self.ct_unannotated_slices_cache + "raw"
+        # self.ct_unannotated_slices_note_cache = self.ct_unannotated_slices_cache + "note"
         self.device = torch.device(settings['device'])
+
+        self.cache_path = None
+        self.cache_input_path = None
+        self.cache_label_path = None
+        self.mhd_list = None
 
     def Extract_Info_From_CSV(self):
         """从表单中提取所有的候选结节信息并整合，最终全部缓存"""
         ## 读取所有块的信息，要求其根据uid排序
-        with open(self.candidates_list_path, 'r') as f:
+        with open(settings[Config_Item.candidates_list_path], 'r') as f:
             ## 列表结构：seriesuid coordX coordY coordZ class
             self.candidates_list = (pd.read_csv(f)).values.tolist()
             self.candidates_list.sort(key=lambda x: x[0])
@@ -88,7 +90,7 @@ class CT_All_Candidates:
             # print(self.candidates_list)
 
         ## 读取所有可疑结节信息，要求其根据uid排序
-        with open(self.annotations_list_path, 'r') as f:
+        with open(settings[Config_Item.annotations_list_path], 'r') as f:
             ## 列表结构：seriesuid coordX coordY coordZ diameter_mm
             self.annotations_list = (pd.read_csv(f)).values.tolist()
             self.annotations_list.sort(key=lambda x: x[0])
@@ -96,21 +98,31 @@ class CT_All_Candidates:
             self.annotations_list.append([["WATCHDOG", 0.0, 0.0, 0.0, 1.0]])
             # print(self.annotations_list)
 
-        ## 提取所有图像路径信息
-        for dirpath, dirnames, filenames in os.walk("dataset/LUNA-Data"):
-            for filename in filenames:
-                ct_uid, extension = os.path.splitext(filename)
-                if extension == ".mhd":
-                    file_path = os.path.join(dirpath, filename)
-                    self.ct_graphics_paths.append((ct_uid, file_path))
+    def Make_Cache_for_UNet(self, cache_type):
+        """制作指定类型的缓存，有train, eval两种情形"""
+        self.cache_path = from_cache_type_to_parameter(cache_type)[0]
+        if cache_type == dataset_cache_type.train_UNet:
+            self.cache_input_path = from_cache_type_to_parameter(dataset_cache_type.train_UNet_input)[0]
+            self.cache_label_path = from_cache_type_to_parameter(dataset_cache_type.train_UNet_label)[0]
+            subset_begin = 0
+            subset_end = subset_begin + settings[Config_Item.num_for_train]
+        elif cache_type == dataset_cache_type.eval_UNet:
+            self.cache_input_path = from_cache_type_to_parameter(dataset_cache_type.eval_UNet_input)[0]
+            self.cache_label_path = from_cache_type_to_parameter(dataset_cache_type.eval_UNet_label)[0]
+            subset_begin = settings[Config_Item.num_for_train]
+            subset_end = subset_begin + settings[Config_Item.num_for_eval]
+        else:
+            raise abort.CacheAbort("Wrong Cache Type!!!")
+
+        self.mhd_list = []
+        for subset in range(subset_begin, subset_end):
+            self.mhd_list += glob.glob(os.path.join(settings[Config_Item.dataset_path], "subset"+str(subset), "*.mhd"))
+        self.ct_graphics_paths = [(os.path.splitext(os.path.basename(path))[0], path) for path in self.mhd_list]
         self.ct_graphics_paths.sort(key=lambda x: x[0])
         self.ct_graphics_length = len(self.ct_graphics_paths)
-        self.ct_graphics_paths.append(("WATCHDOG","WATCHDOG"))
-        # print(self.ct_graphics_paths)
+        self.ct_graphics_paths.append(("WATCHDOG", "WATCHDOG"))
 
         ## 遍历所有图像，逐个遍历列表解析对应的图像
-        index_annotated = 0
-        index_unannotated = 0
         j = 0
         counter = DynamicCounter(self.candidates_list_length, "Extract Progression", 100)
         for i in range(self.ct_graphics_length):
@@ -127,7 +139,7 @@ class CT_All_Candidates:
                 ## 寻找uid相匹配的所有块对应的东西
                 if self.candidates_list[j][0] == self.ct_graphics_paths[i][0]:
                     while True:
-                        self.Dealing_One_Candidate(i, j, ct_graphic)
+                        self.Dealing_One_Candidate_for_UNet(i, j, ct_graphic)
                         counter.increment()
                         j += 1
                         ## 利用在csv表格中同一uid都集中在一起
@@ -136,10 +148,10 @@ class CT_All_Candidates:
                     break
             self.annotations_list_current_pointer = k
 
-        with open(self.ct_annotated_slices_note_cache, 'w') as f:
-            f.write(f"{self.ct_annotated_slices_length}")
-        with open(self.ct_unannotated_slices_note_cache, 'w') as f:
-            f.write(f"{self.ct_unannotated_slices_length}")
+        with open(os.path.join(settings[self.cache_input_path][0], "note"), 'w') as f:
+            f.write(f"{self.ct_caches_length}")
+        with open(os.path.join(settings[self.cache_label_path][0], "note"), 'w') as f:
+            f.write(f"{self.ct_caches_length}")
 
     def _check_border(self, x_n, min_length, max_border):
         """此函数用于检查是否越界并取为整形，要求输入的x_n为整形"""
@@ -195,15 +207,13 @@ class CT_All_Candidates:
         tensor_t *= mask
         return tensor_t
 
-    def Dealing_One_Candidate(self, i, j, ct_graphic):
+    def Dealing_One_Candidate_for_UNet(self, i, j, ct_graphic):
         """填充单个候选结节的具体信息"""
-        ## 区分annotated和unannotated，如果是annotated则直接从annotated列表中取数据，这样数据更精确
         w_n_raw = self.candidates_list[j][1]
         h_n_raw = self.candidates_list[j][2]
         c_n_raw = self.candidates_list[j][3]
         if self.candidates_list[j][4] == 0:
-            if j % EXTERN_VAR.CACHE_UNANNOTED_DATA_RATE != 0:
-                return
+            return
         else:
             k = 0
             whether_annotated = False
@@ -276,15 +286,15 @@ class CT_All_Candidates:
         ## 区分annotated和unannotated两类数据
         ## 这是unannotated类型，直接保存就行
         if self.candidates_list[j][4] == 0:
-            Save_CT_Candidate(self.ct_unannotated_slices_length, self.ct_unannotated_slices_raw_cache,
+            Save_CT_Candidate(self.ct_label_length, self.ct_unannotated_slices_raw_cache,
                               ct_slices_raw)
-            Save_CT_Candidate(self.ct_unannotated_slices_length, self.ct_unannotated_slices_output_cache,
+            Save_CT_Candidate(self.ct_label_length, self.ct_unannotated_slices_output_cache,
                               ct_slices_output)
-            self.ct_unannotated_slices_length += 1
+            self.ct_label_length += 1
         ## 这是annotated类型
         else:
             ## 缓存原始数据
-            Save_CT_Candidate(self.ct_annotated_slices_length, self.ct_annotated_slices_raw_cache,
+            Save_CT_Candidate(self.ct_caches_length, self.ct_annotated_slices_raw_cache,
                               ct_slices_raw)
             ## 进行padding
             ct_slices_input = self._set_to_threshold_with_range(ct_slices_raw,
@@ -295,7 +305,7 @@ class CT_All_Candidates:
                              "cuda")
 
             ## 缓存padding后的输入数据
-            Save_CT_Candidate(self.ct_annotated_slices_length, self.ct_annotated_slices_input_cache,
+            Save_CT_Candidate(self.ct_caches_length, self.ct_annotated_slices_input_cache,
                               ct_slices_input)
             ## 处理label
             ## 这里认为 X, Y 尺度是一样的，将坐标转换为64*64内的坐标
@@ -307,7 +317,7 @@ class CT_All_Candidates:
             h_n_checked = self._check_border(h_n, diameter, EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH)
 
             ct_slices_label = self.Make_Annoted_Infomation(w_n_checked, h_n_checked, diameter, ct_slices_output.clone())
-            Save_CT_Candidate(self.ct_annotated_slices_length, self.ct_annotated_slices_label_cache, ct_slices_label)
+            Save_CT_Candidate(self.ct_caches_length, self.ct_annotated_slices_label_cache, ct_slices_label)
 
             CT_Transform.show_one_ct_tensor(ct_slices_raw, EXTERN_VAR.SLICES_THICKNESS_HALF, (-1, 1))
             CT_Transform.show_one_ct_tensor(ct_slices_input, EXTERN_VAR.SLICES_THICKNESS_HALF, (-1, 1))
@@ -321,7 +331,7 @@ class CT_All_Candidates:
             # print(ct_slices_label.shape)
             print()
 
-            self.ct_annotated_slices_length += 1
+            self.ct_caches_length += 1
 
     def Make_Annoted_Infomation(self, w_n, h_n, diameter, ct_slices_output):
         """制作输入Unet的标注信息"""

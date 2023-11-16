@@ -26,6 +26,8 @@ def test_combination_of_ct_graphics_and_csv():
     """测试是否能正确结合graphics和csv标注信息"""
     ct_all_candidates = CT_All_Candidates()
     ct_all_candidates.Extract_Info_From_CSV()
+    ct_all_candidates.Make_Cache_for_UNet(dataset_cache_type.train_UNet)
+    ct_all_candidates.Make_Cache_for_UNet(dataset_cache_type.eval_UNet)
 
 
 def test_tensor_cache():

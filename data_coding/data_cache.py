@@ -21,7 +21,7 @@ class dataset_cache_type(Enum):
     eval = settings[Config_Item.eval_dataset_cache]
     predict = settings[Config_Item.predict_dataset_cache]
 
-    train_UNet = settings[Config_Item.train_UNet_dataset_num]
+    train_UNet = settings[Config_Item.train_UNet_dataset_cache]
     train_UNet_input = settings[Config_Item.train_UNet_input_dataset_cache]
     train_UNet_label = settings[Config_Item.train_UNet_label_dataset_cache]
     train_type = settings[Config_Item.train_type_dataset_cache]

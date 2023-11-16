@@ -19,11 +19,17 @@ class Config_Item(Enum):
     """存储了所有的config项"""
 
     ## Dataset: 1 - 10
+    dataset_path = 1
+    num_for_train = 2
+    num_for_eval = 3
+    num_for_predict = 4
+    candidates_list_path = 5
+    annotations_list_path = 6
+    unannodated_data_rate = 7
 
-
-    ## Model Save Path: 11 - 20
-    model_save_path = 11
-    UNet_save_path = 12
+    ## Model Save Path: 16 - 20
+    model_save_path = 16
+    UNet_save_path = 17
 
     ## Dataset Cache Path: 21 - 40
     dataset_cache = 21
@@ -82,7 +88,14 @@ class Settings:
     def write_config(self):
         """刷新配置"""
 
-        ## Reserved
+        ## Dataset
+        self.config_dict[Config_Item.dataset_path.name] = "dataset/LUNA-Data"
+        self.config_dict[Config_Item.num_for_train.name] = 7
+        self.config_dict[Config_Item.num_for_eval.name] = 1
+        self.config_dict[Config_Item.num_for_predict.name] = 1
+        self.config_dict[Config_Item.candidates_list_path.name] = "dataset/LUNA-Data/CSVFILES/candidates.csv"
+        self.config_dict[Config_Item.annotations_list_path.name] = "dataset/LUNA-Data/CSVFILES/annotations.csv"
+        self.config_dict[Config_Item.unannodated_data_rate.name] = 100
 
         ## Model Save Path
         self.config_dict[Config_Item.model_save_path.name] = "save/model/"

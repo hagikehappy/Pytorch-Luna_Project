@@ -1,4 +1,11 @@
 {
+    "dataset_path": "dataset/LUNA-Data",
+    "num_for_train": 7,
+    "num_for_eval": 1,
+    "num_for_predict": 1,
+    "candidates_list_path": "dataset/LUNA-Data/CSVFILES/candidates.csv",
+    "annotations_list_path": "dataset/LUNA-Data/CSVFILES/annotations.csv",
+    "unannodated_data_rate": 100,
     "model_save_path": "save/model/",
     "UNet_save_path": "save/model/UNet/",
     "dataset_cache": [
