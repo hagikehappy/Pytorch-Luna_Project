@@ -61,6 +61,7 @@ class Config_Item(Enum):
     eval_type_unannotated_dataset_num = 56
     predict_annotated_dataset_num = 57
     predict_unannotated_dataset_num = 58
+    cache_maxsize = 59
 
     ## Global Train Configure: 61 - 70
     device = 61
@@ -153,6 +154,7 @@ class Settings:
                         Config_Item.predict_annotated_dataset_num.name)
         self._read_note(Config_Item.predict_raw_unannotated_dataset_cache_path.name,
                         Config_Item.predict_unannotated_dataset_num.name)
+        self.config_dict[Config_Item.cache_maxsize.name] = self.total_cache_num
 
         ## Global Train Configure
         self.config_dict[Config_Item.device.name] = "cuda"
@@ -189,12 +191,15 @@ class Settings:
             self.config_dict[num_name] = 0
         except ValueError:
             raise abort.SettingsAbort(f"Number Of {dataset_name} Cache ERROR!!!")
+        self.total_cache_num += self.config_dict[num_name]
 
     def __init__(self, update=False):
         """初始化设置"""
         self.config_path = Path('config/config.json')
         self.config_dict = {}
+        self.config_set = set()
         self.config_list = [0 for _ in range(100)]
+        self.total_cache_num = 0
 
         if self.config_path.exists() and not update:
             with open(self.config_path, "r") as f:
@@ -203,8 +208,9 @@ class Settings:
         else:
             self.write_config()
         for key, value in self.config_dict.items():
+            self.config_set.add(key)
             self.config_list[Config_Item[key].value] = value
-        self.config_set = set(self.config_list)
+        print(type(self.config_list))
 
         print("\nConfigure:")
         for conf, value in self.config_dict.items():

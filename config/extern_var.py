@@ -32,15 +32,15 @@ CACHE_UNANNOTED_DATA_RATE = 100
 
 ## 内存中缓存数量的最大限制
 settings = Settings()
-CACHE_MAXSIZE_ANNOTED = settings.config_dict['annotated_data_num']
-CACHE_MAXSIZE_UNANNOTED = settings.config_dict['unannotated_data_num']
-
-## 内存中缓存的位置
-CACHE_PATH_DATA_FOR_UNET = "dataset/Cache/data_for_unet/"
-CACHE_PATH_ANNOTED = CACHE_PATH_DATA_FOR_UNET + "annotated_slices/"
-CACHE_PATH_ANNOTED_INPUT = CACHE_PATH_ANNOTED + "input/"
-CACHE_PATH_ANNOTED_LABEL = CACHE_PATH_ANNOTED + "label/"
-CACHE_PATH_ANNOTED_RAW = CACHE_PATH_ANNOTED + "raw/"
-CACHE_PATH_UNANNOTED = CACHE_PATH_DATA_FOR_UNET + "unannotated_slices/"
-CACHE_PATH_UNANNOTED_OUTPUT = CACHE_PATH_UNANNOTED + "output/"
-CACHE_PATH_UNANNOTED_RAW = CACHE_PATH_UNANNOTED + "raw/"
+# CACHE_MAXSIZE_ANNOTED = settings.config_dict['annotated_data_num']
+# CACHE_MAXSIZE_UNANNOTED = settings.config_dict['unannotated_data_num']
+# 
+# ## 内存中缓存的位置
+# CACHE_PATH_DATA_FOR_UNET = "dataset/Cache/data_for_unet/"
+# CACHE_PATH_ANNOTED = CACHE_PATH_DATA_FOR_UNET + "annotated_slices/"
+# CACHE_PATH_ANNOTED_INPUT = CACHE_PATH_ANNOTED + "input/"
+# CACHE_PATH_ANNOTED_LABEL = CACHE_PATH_ANNOTED + "label/"
+# CACHE_PATH_ANNOTED_RAW = CACHE_PATH_ANNOTED + "raw/"
+# CACHE_PATH_UNANNOTED = CACHE_PATH_DATA_FOR_UNET + "unannotated_slices/"
+# CACHE_PATH_UNANNOTED_OUTPUT = CACHE_PATH_UNANNOTED + "output/"
+# CACHE_PATH_UNANNOTED_RAW = CACHE_PATH_UNANNOTED + "raw/"

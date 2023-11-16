@@ -30,6 +30,7 @@
     "eval_type_unannotated_dataset_num": 0,
     "predict_annotated_dataset_num": 0,
     "predict_unannotated_dataset_num": 0,
+    "cache_maxsize": 0,
     "device": "cuda",
     "UNet_total_epochs": 10,
     "UNet_train_batch_size": 10,
