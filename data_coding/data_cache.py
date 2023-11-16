@@ -49,6 +49,8 @@ def from_cache_type_to_parameter(cache_type):
         return cache_type.value[0], cache_type.value[1]
     elif type(cache_type) == dict:
         return cache_type[0], cache_type[1]
+    elif type(cache_type) == str:
+        return cache_type, 0
     else:
         raise abort.CacheAbort("Error Cache Type!!!")
 
@@ -56,7 +58,7 @@ def from_cache_type_to_parameter(cache_type):
 @functools.lru_cache(maxsize=settings[Config_Item.cache_maxsize], typed=True)
 def Get_CT_Cache(index, cache_type):
     """用缓存方式获取最终可直接使用的张量"""
-    path, _ = from_cache_type_to_parameter(cache_type)
+    path = from_cache_type_to_parameter(cache_type)[0]
     index_str = "{:06}".format(index)
     cache_file = os.path.join(path, index_str)
     return joblib.load(cache_file)
@@ -76,7 +78,7 @@ def Flush_CT_Data_To_Mem(cache_types):
 
 def Save_CT_Candidate(index, cache_type, data, *arg, **kwargs):
     """存储可用CT数据的缓存"""
-    path, _ = from_cache_type_to_parameter(cache_type)
+    path = from_cache_type_to_parameter(cache_type)[0]
     data = data.to(torch.device("cpu"))
     index_str = "{:06}".format(index)
     cache_file = os.path.join(path, index_str)

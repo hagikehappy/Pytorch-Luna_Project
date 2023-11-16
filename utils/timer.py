@@ -31,6 +31,11 @@ class DynamicCounter:
             self.display_progress()
             print()
 
+    def stop(self):
+        self._count = self.total
+        self.display_progress()
+        print()
+
     def display_progress(self):
         current_time = time.time()
         elapsed_time = current_time - self.start_time  # 从计数器创建到现在经过的时间

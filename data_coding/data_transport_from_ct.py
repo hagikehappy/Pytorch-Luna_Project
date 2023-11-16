@@ -123,7 +123,7 @@ class CT_All_Candidates:
 
         ## 遍历所有图像，逐个遍历列表解析对应的图像
         j = 0
-        counter = DynamicCounter(self.candidates_list_length, "Extract Progression", 100)
+        counter = DynamicCounter(self.candidates_list_length, f"Cache {self.cache_path}", 100)
         for i in range(self.ct_graphics_length):
             ## 取对应的CT图像，并进行进一步的处理
             ## 利用二者排序一致的特点
@@ -158,6 +158,7 @@ class CT_All_Candidates:
                 else:
                     j += 1
             self.annotations_list_current_pointer = k
+        counter.stop()
 
         with open(os.path.join(self.cache_input_path, "note"), 'w') as f:
             f.write(f"{self.ct_caches_length}")
@@ -288,17 +289,12 @@ class CT_All_Candidates:
                            h_n_checked + settings[Config_Item.UNet_train_input_cache_size] -
                            settings[Config_Item.UNet_train_input_cache_size_half], :]
         ct_slices_output = ct_slices_output.contiguous()
-        ct_slices_output = self._Normalize(ct_slices_output, (-1, 1), (0, 1))
-
-        # CT_Transform.show_one_ct_tensor(ct_slices_output, 2)
-        # print()
-        # print(ct_slices_t.shape)
-
         ## 缓存input数据
-        Save_CT_Candidate(self.ct_caches_length, dataset_cache_type.train_UNet_input, ct_slices_output)
+        Save_CT_Candidate(self.ct_caches_length, self.cache_input_path, ct_slices_output)
 
         ## 处理label
         ## 这里认为 X, Y 尺度是一样的，将坐标转换为output内的坐标
+        ct_slices_output = self._Normalize(ct_slices_output, (-1, 1), (0, 1))
         if diameter > settings[Config_Item.UNet_train_input_cache_size]:
             diameter = settings[Config_Item.UNet_train_input_cache_size]
         w_n -= w_n_checked - settings[Config_Item.UNet_train_input_cache_size_half]
@@ -308,7 +304,7 @@ class CT_All_Candidates:
 
         ## 获得滤去背景的标签并缓存
         ct_slices_label = self.Make_Annoted_Infomation(w_n_checked, h_n_checked, diameter, ct_slices_output.clone())
-        Save_CT_Candidate(self.ct_caches_length, dataset_cache_type.train_UNet_label, ct_slices_label)
+        Save_CT_Candidate(self.ct_caches_length, self.cache_label_path, ct_slices_label)
 
         # CT_Transform.show_one_ct_tensor(ct_slices_raw, settings[Config_Item.UNet_train_thickness_half], (-1, 1))
         # CT_Transform.show_one_ct_tensor(ct_slices_output, settings[Config_Item.UNet_train_thickness_half], (0, 1))
@@ -473,7 +469,7 @@ class CT_All_Candidates:
         pass
 
     @staticmethod
-    def Test_UNet_Cache(self, index=None):
+    def Test_UNet_Cache(index=None):
         """测试cache的可用性，指定某种cache后从中抽取并显示"""
         if index is None:
             random.seed(int(time.time()))
@@ -481,8 +477,8 @@ class CT_All_Candidates:
         print(f"Now We are showing UNet Input and Label, index: {index}")
         input_t = Get_CT_Cache(index, dataset_cache_type.train_UNet_input)
         label_t = Get_CT_Cache(index, dataset_cache_type.train_UNet_label)
-        CT_Transform.show_one_ct_tensor(input_t, settings[Config_Item.UNet_train_thickness_half])
-        CT_Transform.show_one_ct_tensor(label_t, settings[Config_Item.UNet_train_thickness_half])
+        CT_Transform.show_one_ct_tensor(input_t, settings[Config_Item.UNet_train_thickness_half], (-1, 1))
+        CT_Transform.show_one_ct_tensor(label_t, settings[Config_Item.UNet_train_thickness_half], (0, 1))
         print(input_t.shape, label_t.shape)
 
 
