@@ -64,16 +64,16 @@ class CT_All_Candidates:
         self.ct_graphics_length = 0
         self.ct_annotated_slices_length = 0
         self.ct_unannotated_slices_length = 0
-        self.ct_slices_cache_path = "dataset/Cache/data_for_unet/"
-        self.ct_annotated_slices_cache_path = self.ct_slices_cache_path + "annotated_slices/"
-        self.ct_annotated_slices_input_cache_path = self.ct_annotated_slices_cache_path + "input"
-        self.ct_annotated_slices_label_cache_path = self.ct_annotated_slices_cache_path + "label"
-        self.ct_annotated_slices_raw_cache_path = self.ct_annotated_slices_cache_path + "raw"
-        self.ct_annotated_slices_note_cache_path = self.ct_annotated_slices_cache_path + "note"
-        self.ct_unannotated_slices_cache_path = self.ct_slices_cache_path + "unannotated_slices/"
-        self.ct_unannotated_slices_output_cache_path = self.ct_unannotated_slices_cache_path + "output"
-        self.ct_unannotated_slices_raw_cache_path = self.ct_unannotated_slices_cache_path + "raw"
-        self.ct_unannotated_slices_note_cache_path = self.ct_unannotated_slices_cache_path + "note"
+        self.ct_slices_cache = "dataset/Cache/data_for_unet/"
+        self.ct_annotated_slices_cache = self.ct_slices_cache + "annotated_slices/"
+        self.ct_annotated_slices_input_cache = self.ct_annotated_slices_cache + "input"
+        self.ct_annotated_slices_label_cache = self.ct_annotated_slices_cache + "label"
+        self.ct_annotated_slices_raw_cache = self.ct_annotated_slices_cache + "raw"
+        self.ct_annotated_slices_note_cache = self.ct_annotated_slices_cache + "note"
+        self.ct_unannotated_slices_cache = self.ct_slices_cache + "unannotated_slices/"
+        self.ct_unannotated_slices_output_cache = self.ct_unannotated_slices_cache + "output"
+        self.ct_unannotated_slices_raw_cache = self.ct_unannotated_slices_cache + "raw"
+        self.ct_unannotated_slices_note_cache = self.ct_unannotated_slices_cache + "note"
         self.device = torch.device(settings['device'])
 
     def Extract_Info_From_CSV(self):
@@ -136,9 +136,9 @@ class CT_All_Candidates:
                     break
             self.annotations_list_current_pointer = k
 
-        with open(self.ct_annotated_slices_note_cache_path, 'w') as f:
+        with open(self.ct_annotated_slices_note_cache, 'w') as f:
             f.write(f"{self.ct_annotated_slices_length}")
-        with open(self.ct_unannotated_slices_note_cache_path, 'w') as f:
+        with open(self.ct_unannotated_slices_note_cache, 'w') as f:
             f.write(f"{self.ct_unannotated_slices_length}")
 
     def _check_border(self, x_n, min_length, max_border):
@@ -276,15 +276,15 @@ class CT_All_Candidates:
         ## 区分annotated和unannotated两类数据
         ## 这是unannotated类型，直接保存就行
         if self.candidates_list[j][4] == 0:
-            Save_CT_Candidate(self.ct_unannotated_slices_length, self.ct_unannotated_slices_raw_cache_path,
+            Save_CT_Candidate(self.ct_unannotated_slices_length, self.ct_unannotated_slices_raw_cache,
                               ct_slices_raw)
-            Save_CT_Candidate(self.ct_unannotated_slices_length, self.ct_unannotated_slices_output_cache_path,
+            Save_CT_Candidate(self.ct_unannotated_slices_length, self.ct_unannotated_slices_output_cache,
                               ct_slices_output)
             self.ct_unannotated_slices_length += 1
         ## 这是annotated类型
         else:
             ## 缓存原始数据
-            Save_CT_Candidate(self.ct_annotated_slices_length, self.ct_annotated_slices_raw_cache_path,
+            Save_CT_Candidate(self.ct_annotated_slices_length, self.ct_annotated_slices_raw_cache,
                               ct_slices_raw)
             ## 进行padding
             ct_slices_input = self._set_to_threshold_with_range(ct_slices_raw,
@@ -295,7 +295,7 @@ class CT_All_Candidates:
                              "cuda")
 
             ## 缓存padding后的输入数据
-            Save_CT_Candidate(self.ct_annotated_slices_length, self.ct_annotated_slices_input_cache_path,
+            Save_CT_Candidate(self.ct_annotated_slices_length, self.ct_annotated_slices_input_cache,
                               ct_slices_input)
             ## 处理label
             ## 这里认为 X, Y 尺度是一样的，将坐标转换为64*64内的坐标
@@ -307,7 +307,7 @@ class CT_All_Candidates:
             h_n_checked = self._check_border(h_n, diameter, EXTERN_VAR.SLICES_Y_OUTPUT_LENGTH)
 
             ct_slices_label = self.Make_Annoted_Infomation(w_n_checked, h_n_checked, diameter, ct_slices_output.clone())
-            Save_CT_Candidate(self.ct_annotated_slices_length, self.ct_annotated_slices_label_cache_path, ct_slices_label)
+            Save_CT_Candidate(self.ct_annotated_slices_length, self.ct_annotated_slices_label_cache, ct_slices_label)
 
             CT_Transform.show_one_ct_tensor(ct_slices_raw, EXTERN_VAR.SLICES_THICKNESS_HALF, (-1, 1))
             CT_Transform.show_one_ct_tensor(ct_slices_input, EXTERN_VAR.SLICES_THICKNESS_HALF, (-1, 1))
@@ -478,7 +478,7 @@ class CT_All_Candidates:
 
     def Test_Cache(self, type_path, index=None):
         """测试cache的可用性，指定某种cache后从中抽取并显示"""
-        data_path = os.path.join(self.ct_slices_cache_path, type_path)
+        data_path = os.path.join(self.ct_slices_cache, type_path)
         if index is None:
             with open(os.path.join(data_path, "note"), 'r') as f:
                 total_num = int(f.readline())

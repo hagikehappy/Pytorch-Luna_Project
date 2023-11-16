@@ -31,7 +31,7 @@ UNET_LOW_THRESHOLD_RATE = 0.15
 CACHE_UNANNOTED_DATA_RATE = 100
 
 ## 内存中缓存数量的最大限制
-settings = Settings()
+settings = Settings(update=True)
 # CACHE_MAXSIZE_ANNOTED = settings.config_dict['annotated_data_num']
 # CACHE_MAXSIZE_UNANNOTED = settings.config_dict['unannotated_data_num']
 # 

@@ -50,3 +50,7 @@ class DynamicCounter:
         if self._count == 0:
             return "No data to estimate."
         return (self.total - self._count) / (self._count / (time.time() - self.start_time))
+
+
+if __name__ == "__main__":
+    counter = DynamicCounter(0, " ", 10)

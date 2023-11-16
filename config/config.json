@@ -1,27 +1,93 @@
 {
     "model_save_path": "save/model/",
     "UNet_save_path": "save/model/UNet/",
-    "dataset_cache_path": "dataset/Cache/",
-    "train_dataset_cache_path": "dataset/Cache/train/",
-    "train_UNet_dataset_cache_path": "dataset/Cache/train/UNet/",
-    "train_UNet_input_dataset_cache_path": "dataset/Cache/train/UNet/input/",
-    "train_UNet_label_dataset_cache_path": "dataset/Cache/train/UNet/label/",
-    "train_type_dataset_cache_path": "dataset/Cache/train/type/",
-    "train_type_annotated_dataset_cache_path": "dataset/Cache/train/type/annotated/",
-    "train_type_unannotated_dataset_cache_path": "dataset/Cache/train/type/unannotated/",
-    "eval_dataset_cache_path": "dataset/Cache/eval/",
-    "eval_UNet_dataset_cache_path": "dataset/Cache/eval/UNet/",
-    "eval_UNet_input_dataset_cache_path": "dataset/Cache/eval/UNet/input/",
-    "eval_UNet_label_dataset_cache_path": "dataset/Cache/eval/UNet/label/",
-    "eval_type_dataset_cache_path": "dataset/Cache/eval/type/",
-    "eval_type_annotated_dataset_cache_path": "dataset/Cache/eval/type/annotated/",
-    "eval_type_unannotated_dataset_cache_path": "dataset/Cache/eval/type/unannotated/",
-    "predict_dataset_cache_path": "dataset/Cache/predict/raw/",
-    "predict_raw_annotated_dataset_cache_path": "dataset/Cache/predict/raw/annotated/",
-    "predict_raw_unannotated_dataset_cache_path": "dataset/Cache/predict/raw/unannotated/",
-    "predict_UNet_dataset_cache_path": "dataset/Cache/predict/raw/UNet/",
-    "predict_UNet_annotated_dataset_cache_path": "dataset/Cache/predict/raw/UNet/annotated/",
-    "predict_UNet_unannotated_dataset_cache_path": "dataset/Cache/predict/raw/UNet/unannotated/",
+    "dataset_cache": [
+        "dataset/Cache/",
+        0
+    ],
+    "train_dataset_cache": [
+        "dataset/Cache/train/",
+        0
+    ],
+    "train_UNet_dataset_cache": [
+        "dataset/Cache/train/UNet/",
+        0
+    ],
+    "train_UNet_input_dataset_cache": [
+        "dataset/Cache/train/UNet/input/",
+        0
+    ],
+    "train_UNet_label_dataset_cache": [
+        "dataset/Cache/train/UNet/label/",
+        0
+    ],
+    "train_type_dataset_cache": [
+        "dataset/Cache/train/type/",
+        0
+    ],
+    "train_type_annotated_dataset_cache": [
+        "dataset/Cache/train/type/annotated/",
+        0
+    ],
+    "train_type_unannotated_dataset_cache": [
+        "dataset/Cache/train/type/unannotated/",
+        0
+    ],
+    "eval_dataset_cache": [
+        "dataset/Cache/eval/",
+        0
+    ],
+    "eval_UNet_dataset_cache": [
+        "dataset/Cache/eval/UNet/",
+        0
+    ],
+    "eval_UNet_input_dataset_cache": [
+        "dataset/Cache/eval/UNet/input/",
+        0
+    ],
+    "eval_UNet_label_dataset_cache": [
+        "dataset/Cache/eval/UNet/label/",
+        0
+    ],
+    "eval_type_dataset_cache": [
+        "dataset/Cache/eval/type/",
+        0
+    ],
+    "eval_type_annotated_dataset_cache": [
+        "dataset/Cache/eval/type/annotated/",
+        0
+    ],
+    "eval_type_unannotated_dataset_cache": [
+        "dataset/Cache/eval/type/unannotated/",
+        0
+    ],
+    "predict_dataset_cache": [
+        [
+            "dataset/Cache/predict/raw/",
+            0
+        ],
+        0
+    ],
+    "predict_raw_annotated_dataset_cache": [
+        "dataset/Cache/predict/raw/annotated/",
+        0
+    ],
+    "predict_raw_unannotated_dataset_cache": [
+        "dataset/Cache/predict/raw/unannotated/",
+        0
+    ],
+    "predict_UNet_dataset_cache": [
+        "dataset/Cache/predict/raw/UNet/",
+        0
+    ],
+    "predict_UNet_annotated_dataset_cache": [
+        "dataset/Cache/predict/raw/UNet/annotated/",
+        0
+    ],
+    "predict_UNet_unannotated_dataset_cache": [
+        "dataset/Cache/predict/raw/UNet/unannotated/",
+        0
+    ],
     "train_UNet_dataset_num": 0,
     "train_type_annotated_dataset_num": 0,
     "train_type_unannotated_dataset_num": 0,

@@ -74,7 +74,7 @@ def train():
         print("\nWrong Loss Type!!!\n")
         exit()
     ## 加载数据集
-    Flush_All_CT_Data_To_Mem()
+    Flush_CT_Data_To_Mem()
     train_dataset = UNet_Train_Dataset()
     batch_size = settings['train_batch_size']
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)

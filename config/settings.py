@@ -26,31 +26,31 @@ class Config_Item(Enum):
     UNet_save_path = 12
 
     ## Dataset Cache Path: 21 - 40
-    dataset_cache_path = 21
+    dataset_cache = 21
     ## Train
-    train_dataset_cache_path = 22
-    train_UNet_dataset_cache_path = 23
-    train_UNet_input_dataset_cache_path = 24
-    train_UNet_label_dataset_cache_path = 25
-    train_type_dataset_cache_path = 26
-    train_type_annotated_dataset_cache_path = 27
-    train_type_unannotated_dataset_cache_path = 28
+    train_dataset_cache = 22
+    train_UNet_dataset_cache = 23
+    train_UNet_input_dataset_cache = 24
+    train_UNet_label_dataset_cache = 25
+    train_type_dataset_cache = 26
+    train_type_annotated_dataset_cache = 27
+    train_type_unannotated_dataset_cache = 28
     ## Eval
-    eval_dataset_cache_path = 29
-    eval_UNet_dataset_cache_path = 30
-    eval_UNet_input_dataset_cache_path = 31
-    eval_UNet_label_dataset_cache_path = 32
-    eval_type_dataset_cache_path = 33
-    eval_type_annotated_dataset_cache_path = 34
-    eval_type_unannotated_dataset_cache_path = 35
+    eval_dataset_cache = 29
+    eval_UNet_dataset_cache = 30
+    eval_UNet_input_dataset_cache = 31
+    eval_UNet_label_dataset_cache = 32
+    eval_type_dataset_cache = 33
+    eval_type_annotated_dataset_cache = 34
+    eval_type_unannotated_dataset_cache = 35
     ## Predict
-    predict_dataset_cache_path = 36
-    predict_raw_dataset_cache_path = 36
-    predict_raw_annotated_dataset_cache_path = 37
-    predict_raw_unannotated_dataset_cache_path = 38
-    predict_UNet_dataset_cache_path = 39
-    predict_UNet_annotated_dataset_cache_path = 40
-    predict_UNet_unannotated_dataset_cache_path = 41
+    predict_dataset_cache = 36
+    predict_raw_dataset_cache = 36
+    predict_raw_annotated_dataset_cache = 37
+    predict_raw_unannotated_dataset_cache = 38
+    predict_UNet_dataset_cache = 39
+    predict_UNet_annotated_dataset_cache = 40
+    predict_UNet_unannotated_dataset_cache = 41
 
     ## Dataset Parameter: 51 - 60
     train_UNet_dataset_num = 51
@@ -90,71 +90,106 @@ class Settings:
             os.path.join(self.config_dict[Config_Item.model_save_path.name], "UNet/")
 
         ## Dataset Cache Path
-        self.config_dict[Config_Item.dataset_cache_path.name] = "dataset/Cache/"
+        self.config_dict[Config_Item.dataset_cache.name] = "dataset/Cache/"
         ## Train
-        self.config_dict[Config_Item.train_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.dataset_cache_path.name], "train/")
-        self.config_dict[Config_Item.train_UNet_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.train_dataset_cache_path.name], "UNet/")
-        self.config_dict[Config_Item.train_UNet_input_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.train_UNet_dataset_cache_path.name], "input/")
-        self.config_dict[Config_Item.train_UNet_label_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.train_UNet_dataset_cache_path.name], "label/")
-        self.config_dict[Config_Item.train_type_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.train_dataset_cache_path.name], "type/")
-        self.config_dict[Config_Item.train_type_annotated_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.train_type_dataset_cache_path.name], "annotated/")
-        self.config_dict[Config_Item.train_type_unannotated_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.train_type_dataset_cache_path.name], "unannotated/")
+        self.config_dict[Config_Item.train_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.dataset_cache.name], "train/")
+        self.config_dict[Config_Item.train_UNet_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.train_dataset_cache.name], "UNet/")
+        self.config_dict[Config_Item.train_UNet_input_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.train_UNet_dataset_cache.name], "input/")
+        self.config_dict[Config_Item.train_UNet_label_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.train_UNet_dataset_cache.name], "label/")
+        self.config_dict[Config_Item.train_type_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.train_dataset_cache.name], "type/")
+        self.config_dict[Config_Item.train_type_annotated_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.train_type_dataset_cache.name], "annotated/")
+        self.config_dict[Config_Item.train_type_unannotated_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.train_type_dataset_cache.name], "unannotated/")
         ## Eval
-        self.config_dict[Config_Item.eval_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.dataset_cache_path.name], "eval/")
-        self.config_dict[Config_Item.eval_UNet_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.eval_dataset_cache_path.name], "UNet/")
-        self.config_dict[Config_Item.eval_UNet_input_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.eval_UNet_dataset_cache_path.name], "input/")
-        self.config_dict[Config_Item.eval_UNet_label_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.eval_UNet_dataset_cache_path.name], "label/")
-        self.config_dict[Config_Item.eval_type_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.eval_dataset_cache_path.name], "type/")
-        self.config_dict[Config_Item.eval_type_annotated_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.eval_type_dataset_cache_path.name], "annotated/")
-        self.config_dict[Config_Item.eval_type_unannotated_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.eval_type_dataset_cache_path.name], "unannotated/")
+        self.config_dict[Config_Item.eval_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.dataset_cache.name], "eval/")
+        self.config_dict[Config_Item.eval_UNet_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.eval_dataset_cache.name], "UNet/")
+        self.config_dict[Config_Item.eval_UNet_input_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.eval_UNet_dataset_cache.name], "input/")
+        self.config_dict[Config_Item.eval_UNet_label_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.eval_UNet_dataset_cache.name], "label/")
+        self.config_dict[Config_Item.eval_type_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.eval_dataset_cache.name], "type/")
+        self.config_dict[Config_Item.eval_type_annotated_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.eval_type_dataset_cache.name], "annotated/")
+        self.config_dict[Config_Item.eval_type_unannotated_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.eval_type_dataset_cache.name], "unannotated/")
         ## Predict
-        self.config_dict[Config_Item.predict_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.dataset_cache_path.name], "predict/")
-        self.config_dict[Config_Item.predict_raw_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.predict_dataset_cache_path.name], "raw/")
-        self.config_dict[Config_Item.predict_raw_annotated_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.predict_raw_dataset_cache_path.name], "annotated/")
-        self.config_dict[Config_Item.predict_raw_unannotated_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.predict_raw_dataset_cache_path.name], "unannotated/")
-        self.config_dict[Config_Item.predict_UNet_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.predict_dataset_cache_path.name], "UNet/")
-        self.config_dict[Config_Item.predict_UNet_annotated_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.predict_UNet_dataset_cache_path.name], "annotated/")
-        self.config_dict[Config_Item.predict_UNet_unannotated_dataset_cache_path.name] = \
-            os.path.join(self.config_dict[Config_Item.predict_UNet_dataset_cache_path.name], "unannotated/")
+        self.config_dict[Config_Item.predict_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.dataset_cache.name], "predict/")
+        self.config_dict[Config_Item.predict_raw_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.predict_dataset_cache.name], "raw/")
+        self.config_dict[Config_Item.predict_raw_annotated_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.predict_raw_dataset_cache.name], "annotated/")
+        self.config_dict[Config_Item.predict_raw_unannotated_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.predict_raw_dataset_cache.name], "unannotated/")
+        self.config_dict[Config_Item.predict_UNet_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.predict_dataset_cache.name], "UNet/")
+        self.config_dict[Config_Item.predict_UNet_annotated_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.predict_UNet_dataset_cache.name], "annotated/")
+        self.config_dict[Config_Item.predict_UNet_unannotated_dataset_cache.name] = \
+            os.path.join(self.config_dict[Config_Item.predict_UNet_dataset_cache.name], "unannotated/")
 
         ## Dataset Parameter
-        self._read_note(Config_Item.train_UNet_dataset_cache_path.name,
-                        Config_Item.train_UNet_dataset_num.name)
-        self._read_note(Config_Item.train_type_annotated_dataset_cache_path.name,
-                        Config_Item.train_type_annotated_dataset_num.name)
-        self._read_note(Config_Item.train_type_unannotated_dataset_cache_path.name,
-                        Config_Item.train_type_unannotated_dataset_num.name)
-        self._read_note(Config_Item.eval_UNet_dataset_cache_path.name,
-                        Config_Item.eval_UNet_dataset_num.name)
-        self._read_note(Config_Item.eval_type_annotated_dataset_cache_path.name,
-                        Config_Item.eval_type_annotated_dataset_num.name)
-        self._read_note(Config_Item.eval_type_unannotated_dataset_cache_path.name,
-                        Config_Item.eval_type_unannotated_dataset_num.name)
-        self._read_note(Config_Item.predict_raw_annotated_dataset_cache_path.name,
+        tmp_num = [0 for _ in range(6)]
+        i = 0
+        self._read_note(Config_Item.train_UNet_input_dataset_cache.name,
+                        Config_Item.train_UNet_dataset_num.name, tmp_num[i])
+        self._read_note(Config_Item.train_UNet_label_dataset_cache.name,
+                        Config_Item.train_UNet_dataset_num.name, tmp_num[i])
+        self._turn_to_tuple_with_num(Config_Item.train_UNet_dataset_cache.name, tmp_num[i])
+
+        i += 1
+        self._read_note(Config_Item.train_type_annotated_dataset_cache.name,
+                        Config_Item.train_type_annotated_dataset_num.name, tmp_num[i])
+        self._read_note(Config_Item.train_type_unannotated_dataset_cache.name,
+                        Config_Item.train_type_unannotated_dataset_num.name, tmp_num[i])
+        self._turn_to_tuple_with_num(Config_Item.train_type_dataset_cache.name, tmp_num[i])
+
+        tmp_num[i-1] = tmp_num[i-1] + tmp_num[i]
+        self._turn_to_tuple_with_num(Config_Item.train_dataset_cache.name, tmp_num[i-1])
+
+        self._read_note(Config_Item.eval_UNet_input_dataset_cache.name,
+                        Config_Item.eval_UNet_dataset_num.name, tmp_num[i])
+        self._read_note(Config_Item.eval_UNet_label_dataset_cache.name,
+                        Config_Item.eval_UNet_dataset_num.name, tmp_num[i])
+        self._turn_to_tuple_with_num(Config_Item.eval_UNet_dataset_cache.name, tmp_num[i])
+
+        i += 1
+        self._read_note(Config_Item.eval_type_annotated_dataset_cache.name,
+                        Config_Item.eval_type_annotated_dataset_num.name, tmp_num[i])
+        self._read_note(Config_Item.eval_type_unannotated_dataset_cache.name,
+                        Config_Item.eval_type_unannotated_dataset_num.name, tmp_num[i])
+        self._turn_to_tuple_with_num(Config_Item.eval_type_dataset_cache.name, tmp_num[i])
+
+        tmp_num[i - 1] = tmp_num[i - 1] + tmp_num[i]
+        self._turn_to_tuple_with_num(Config_Item.eval_dataset_cache.name, tmp_num[i - 1])
+
+        self._read_note(Config_Item.predict_raw_annotated_dataset_cache.name,
+                        Config_Item.predict_annotated_dataset_num.name, tmp_num[i])
+        self._read_note(Config_Item.predict_raw_unannotated_dataset_cache.name,
+                        Config_Item.predict_unannotated_dataset_num.name, tmp_num[i])
+        self._turn_to_tuple_with_num(Config_Item.predict_raw_dataset_cache.name, tmp_num[i])
+
+        i += 1
+        self._read_note(Config_Item.predict_UNet_annotated_dataset_cache.name,
                         Config_Item.predict_annotated_dataset_num.name)
-        self._read_note(Config_Item.predict_raw_unannotated_dataset_cache_path.name,
+        self._read_note(Config_Item.predict_UNet_unannotated_dataset_cache.name,
                         Config_Item.predict_unannotated_dataset_num.name)
+        self._turn_to_tuple_with_num(Config_Item.predict_UNet_dataset_cache.name, tmp_num[i])
+
+        tmp_num[i - 1] = tmp_num[i - 1] + tmp_num[i]
+        self._turn_to_tuple_with_num(Config_Item.predict_dataset_cache.name, tmp_num[i - 1])
+
         self.config_dict[Config_Item.cache_maxsize.name] = self.total_cache_num
+        self._turn_to_tuple_with_num(Config_Item.dataset_cache.name, self.total_cache_num)
 
         ## Global Train Configure
         self.config_dict[Config_Item.device.name] = "cuda"
@@ -182,7 +217,7 @@ class Settings:
         with open(self.config_path, "w") as f:
             json.dump(self.config_dict, f, indent=4)
 
-    def _read_note(self, dataset_name, num_name):
+    def _read_note(self, dataset_name, num_name, tmp_num=0):
         """读取dataset的数值"""
         try:
             with open(os.path.join(self.config_dict[dataset_name], "note"), "r") as f:
@@ -191,7 +226,13 @@ class Settings:
             self.config_dict[num_name] = 0
         except ValueError:
             raise abort.SettingsAbort(f"Number Of {dataset_name} Cache ERROR!!!")
+        self.config_dict[dataset_name] = (self.config_dict[dataset_name], self.config_dict[num_name])
         self.total_cache_num += self.config_dict[num_name]
+        tmp_num += self.config_dict[num_name]
+
+    def _turn_to_tuple_with_num(self, dataset_name, num):
+        """将路径变为带有cache数量的元组"""
+        self.config_dict[dataset_name] = (self.config_dict[dataset_name], num)
 
     def __init__(self, update=False):
         """初始化设置"""
@@ -249,4 +290,4 @@ class Settings:
 
 
 if __name__ == "__main__":
-    print(type(Config_Item.predict_raw_annotated_dataset_cache_path) == Config_Item)
+    print(type(Config_Item.predict_raw_annotated_dataset_cache) == Config_Item)

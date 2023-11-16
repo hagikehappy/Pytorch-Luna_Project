@@ -35,5 +35,5 @@ def test_tensor_cache():
 
 def test_cache_mem():
     """测试刷缓存功能"""
-    Flush_All_CT_Data_To_Mem()
+    Flush_CT_Data_To_Mem()
 
