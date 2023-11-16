@@ -9,6 +9,36 @@ from tools.tool import *
 import torch
 
 
+class dataset_cache_type(Enum):
+    """以路径方式简明定义各种cache类型"""
+    total = settings[Config_Item.dataset_cache_path]
+
+    train = settings[Config_Item.train_dataset_cache_path]
+    eval = settings[Config_Item.eval_dataset_cache_path]
+    predict = settings[Config_Item.predict_dataset_cache_path]
+
+    train_UNet = settings[Config_Item.train_UNet_dataset_num]
+    train_UNet_input = settings[Config_Item.train_UNet_input_dataset_cache_path]
+    train_UNet_label = settings[Config_Item.train_UNet_label_dataset_cache_path]
+    train_type = settings[Config_Item.train_type_dataset_cache_path]
+    train_type_annotated = settings[Config_Item.train_type_annotated_dataset_cache_path]
+    train_type_unannotated = settings[Config_Item.train_type_unannotated_dataset_cache_path]
+
+    eval_UNet = settings[Config_Item.eval_UNet_dataset_num]
+    eval_UNet_input = settings[Config_Item.eval_UNet_input_dataset_cache_path]
+    eval_UNet_label = settings[Config_Item.eval_UNet_label_dataset_cache_path]
+    eval_type = settings[Config_Item.eval_type_dataset_cache_path]
+    eval_type_annotated = settings[Config_Item.eval_type_annotated_dataset_cache_path]
+    eval_type_unannotated = settings[Config_Item.eval_type_unannotated_dataset_cache_path]
+
+    predict_raw = settings[Config_Item.predict_raw_dataset_cache_path]
+    predict_raw_annotated = settings[Config_Item.predict_raw_annotated_dataset_cache_path]
+    predict_raw_unannotated = settings[Config_Item.predict_raw_unannotated_dataset_cache_path]
+    predict_UNet = settings[Config_Item.predict_UNet_dataset_cache_path]
+    predict_UNet_annotated = settings[Config_Item.predict_UNet_annotated_dataset_cache_path]
+    predict_UNet_unannotated = settings[Config_Item.predict_UNet_unannotated_dataset_cache_path]
+
+
 def Get_CT_Candidate(index, path):
     """用缓存封装的获取最终可用于处理图片的方式"""
     index_str = "{:06}".format(index)

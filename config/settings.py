@@ -1,6 +1,7 @@
 from pathlib import Path
 import json
 from enum import Enum
+import enum
 import os
 import utils.abort as abort
 
@@ -198,11 +199,12 @@ class Settings:
         if self.config_path.exists() and not update:
             with open(self.config_path, "r") as f:
                 self.config_dict = json.load(f)
-                for key, value in self.config_dict.items():
-                    self.config_list[Config_Item[key].value] = value
             self.check_config()
         else:
             self.write_config()
+        for key, value in self.config_dict.items():
+            self.config_list[Config_Item[key].value] = value
+        self.config_set = set(self.config_list)
 
         print("\nConfigure:")
         for conf, value in self.config_dict.items():
@@ -211,30 +213,34 @@ class Settings:
 
     def __getitem__(self, key):
         """重载[]，直接返回项"""
-        if type(key) is int:
+        if type(key) == int:
             try:
                 if self.config_list[key] == 0:
                     raise IndexError
                 return self.config_list[key]
             except IndexError:
-                print(f"\nThe setting '{key}' does not exist in the Settings!!!\n")
-                exit(-1)
-        elif type(key) is str:
+                raise abort.SettingsAbort(f"The setting '{key}' does not exist in the Settings!!!")
+        elif type(key) == str:
             try:
                 return self.config_dict[key]
             except KeyError:
-                print(f"\nThe setting '{key}' does not exist in the Settings!!!\n")
-                exit(-1)
+                raise abort.SettingsAbort(f"The setting '{key}' does not exist in the Settings!!!")
+        elif type(key) == Config_Item:
+            try:
+                return self.config_list[key.value]
+            except AttributeError:
+                raise abort.SettingsAbort(f"The setting '{key}' does not exist in the Settings!!!")
         else:
-            print(f"\nThe setting '{key}' does not exist in the Settings!!!\n")
-            exit(-1)
+            raise abort.SettingsAbort(f"The setting '{key}' does not exist in the Settings!!!")
 
     def check_config(self):
         """检查配置是否齐全"""
         config_set = set(self.config_dict.keys())
-        if config_set == Settings.settings_item:
+        if config_set == self.config_list:
             pass
         else:
             self.write_config()
 
 
+if __name__ == "__main__":
+    print(type(Config_Item.predict_raw_annotated_dataset_cache_path) == Config_Item)
