@@ -68,6 +68,8 @@ class CT_All_Candidates:
         self.cache_path = None
         self.cache_input_path = None
         self.cache_label_path = None
+        self.cache_unannotated_path = None
+        self.cache_annotated_path = None
         self.mhd_list = None
 
     def Extract_Info_From_CSV(self):
@@ -90,10 +92,14 @@ class CT_All_Candidates:
             self.annotations_list.append([["WATCHDOG", 0.0, 0.0, 0.0, 1.0]])
             # print(self.annotations_list)
 
-    def Make_Cache_for_UNet(self, cache_type):
+    def Make_Cache_for_Type(self, cache_type):
         """制作指定类型的缓存，有train, eval两种情形"""
 
-        ## 复位部分信息
+        self.Get_CT_Graphic_Info(cache_type)
+
+    def Get_CT_Graphic_Info(self, cache_type):
+        """根据cache_type的对于CT图像的预处理"""
+        ## 鲁棒性复位部分信息
         self.annotations_list_current_pointer = 0
         self.annotations_list_current_length = 0
         self.ct_caches_length = 0
@@ -109,6 +115,16 @@ class CT_All_Candidates:
             self.cache_label_path = from_cache_type_to_parameter(dataset_cache_type.eval_UNet_label)[0]
             subset_begin = settings[Config_Item.num_for_train]
             subset_end = subset_begin + settings[Config_Item.num_for_eval]
+        elif cache_type == dataset_cache_type.train_type:
+            self.cache_annotated_path = from_cache_type_to_parameter(dataset_cache_type.train_type_annotated)[0]
+            self.cache_unannotated_path = from_cache_type_to_parameter(dataset_cache_type.train_type_unannotated)[0]
+            subset_begin = 0
+            subset_end = subset_begin + settings[Config_Item.num_for_train]
+        elif cache_type == dataset_cache_type.eval_type:
+            self.cache_annotated_path = from_cache_type_to_parameter(dataset_cache_type.eval_type_annotated)[0]
+            self.cache_unannotated_path = from_cache_type_to_parameter(dataset_cache_type.eval_type_unannotated)[0]
+            subset_begin = settings[Config_Item.num_for_train]
+            subset_end = subset_begin + settings[Config_Item.num_for_eval]
         else:
             raise abort.CacheAbort("Wrong Cache Type!!!")
 
@@ -120,6 +136,11 @@ class CT_All_Candidates:
         self.ct_graphics_paths.sort(key=lambda x: x[0])
         self.ct_graphics_length = len(self.ct_graphics_paths)
         self.ct_graphics_paths.append(("WATCHDOG", "WATCHDOG"))
+
+    def Make_Cache_for_UNet(self, cache_type):
+        """制作指定类型的缓存，有train, eval两种情形"""
+
+        self.Get_CT_Graphic_Info(cache_type)
 
         ## 遍历所有图像，逐个遍历列表解析对应的图像
         j = 0
@@ -160,10 +181,15 @@ class CT_All_Candidates:
             self.annotations_list_current_pointer = k
         counter.stop()
 
+        self._write_note()
+
+    def _write_note(self):
+        """写入cache的长度数据"""
         with open(os.path.join(self.cache_input_path, "note"), 'w') as f:
             f.write(f"{self.ct_caches_length}")
         with open(os.path.join(self.cache_label_path, "note"), 'w') as f:
             f.write(f"{self.ct_caches_length}")
+
 
     def _check_border(self, x_n, min_length, max_border):
         """此函数用于检查是否越界并取为整形，要求输入的x_n为整形"""
@@ -464,8 +490,10 @@ class CT_All_Candidates:
     def Cache_All_CT_Candidates(self):
         """用于将所有最终用于神经网络处理的结节刷入磁盘缓存，此处用Extract_Info_From_CSV实现了"""
         self.Extract_Info_From_CSV()
-        self.Make_Cache_for_UNet(dataset_cache_type.train_UNet)
-        self.Make_Cache_for_UNet(dataset_cache_type.eval_UNet)
+        # self.Make_Cache_for_UNet(dataset_cache_type.train_UNet)
+        # self.Make_Cache_for_UNet(dataset_cache_type.eval_UNet)
+        self.Make_Cache_for_Type(dataset_cache_type.train_type)
+        self.Make_Cache_for_Type(dataset_cache_type.eval_type)
         pass
 
     @staticmethod
