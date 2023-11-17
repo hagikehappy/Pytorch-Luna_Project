@@ -126,5 +126,11 @@
     "UNet_train_thickness": 3,
     "UNet_train_thickness_half": 1,
     "UNet_low_threshold_rate": 0.15,
-    "UNet_Radius_Expansion": 0
+    "UNet_Radius_Expansion": 0,
+    "Type_train_final_size": 48,
+    "Type_train_cache_size": 72,
+    "Type_train_cache_size_half": 36,
+    "Type_train_thickness": 32,
+    "Type_train_thickness_half": 16,
+    "Type_train_threshold": 0.3
 }

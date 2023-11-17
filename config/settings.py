@@ -85,6 +85,7 @@ class Config_Item(Enum):
     raw_data_size = 101
     raw_data_centercrop_size = 102
     raw_data_cropped_size = 103
+    ## UNet
     UNet_train_input_cache_size = 104
     UNet_train_input_cache_size_half = 105
     UNet_train_input_final_size = 106
@@ -92,7 +93,13 @@ class Config_Item(Enum):
     UNet_train_thickness_half = 108
     UNet_low_threshold_rate = 109
     UNet_Radius_Expansion = 110
-
+    ## Type
+    Type_train_cache_size = 111
+    Type_train_cache_size_half = 112
+    Type_train_final_size = 113
+    Type_train_thickness = 114
+    Type_train_thickness_half = 115
+    Type_train_threshold = 116
 
 
 class Settings:
@@ -258,6 +265,18 @@ class Settings:
             self.config_dict[Config_Item.UNet_train_thickness.name] // 2
         self.config_dict[Config_Item.UNet_low_threshold_rate.name] = 0.15
         self.config_dict[Config_Item.UNet_Radius_Expansion.name] = 0
+        ## for Type
+        self.config_dict[Config_Item.Type_train_final_size.name] = 48
+        self.config_dict[Config_Item.Type_train_cache_size.name] = \
+            self.config_dict[Config_Item.Type_train_final_size.name] // 2 * 3
+        self.config_dict[Config_Item.Type_train_cache_size_half.name] = \
+            self.config_dict[Config_Item.Type_train_cache_size.name] // 2
+        self.config_dict[Config_Item.Type_train_thickness.name] = 32
+        self.config_dict[Config_Item.Type_train_thickness_half.name] = \
+            self.config_dict[Config_Item.Type_train_thickness.name] // 2
+        self.config_dict[Config_Item.Type_train_threshold.name] = \
+            self.config_dict[Config_Item.UNet_low_threshold_rate.name] * 2
+
 
         with open(self.config_path, "w") as f:
             json.dump(self.config_dict, f, indent=4)
