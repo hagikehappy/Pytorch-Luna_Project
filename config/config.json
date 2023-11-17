@@ -10,7 +10,7 @@
     "UNet_save_path": "save/model/UNet/",
     "dataset_cache": [
         "dataset/Cache/",
-        6559
+        7219
     ],
     "train_dataset_cache": [
         "dataset/Cache/train/",
@@ -42,7 +42,7 @@
     ],
     "eval_dataset_cache": [
         "dataset/Cache/eval/",
-        4885
+        5545
     ],
     "eval_UNet_dataset_cache": [
         "dataset/Cache/eval/UNet/",
@@ -58,23 +58,23 @@
     ],
     "eval_type_dataset_cache": [
         "dataset/Cache/eval/type/",
-        0
+        660
     ],
     "eval_type_annotated_dataset_cache": [
         "dataset/Cache/eval/type/annotated/",
-        0
+        104
     ],
     "eval_type_unannotated_dataset_cache": [
         "dataset/Cache/eval/type/unannotated/",
-        0
+        556
     ],
     "predict_dataset_cache": [
         "dataset/Cache/predict/",
-        0
+        660
     ],
     "predict_raw_dataset_cache": [
         "dataset/Cache/predict/raw/",
-        0
+        660
     ],
     "predict_raw_annotated_dataset_cache": [
         "dataset/Cache/predict/raw/annotated/",
@@ -100,11 +100,11 @@
     "train_type_annotated_dataset_num": 837,
     "train_type_unannotated_dataset_num": 3840,
     "eval_UNet_dataset_num": 104,
-    "eval_type_annotated_dataset_num": 0,
-    "eval_type_unannotated_dataset_num": 0,
+    "eval_type_annotated_dataset_num": 104,
+    "eval_type_unannotated_dataset_num": 556,
     "predict_annotated_dataset_num": 0,
     "predict_unannotated_dataset_num": 0,
-    "cache_maxsize": 6559,
+    "cache_maxsize": 7219,
     "device": "cuda",
     "UNet_total_epochs": 10,
     "UNet_train_batch_size": 10,

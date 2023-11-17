@@ -32,7 +32,8 @@ def test_combination_of_ct_graphics_and_csv():
 def test_tensor_cache():
     """测试是否能正常使用cache"""
     ct_all_candidates = CT_All_Candidates()
-    ct_all_candidates.Test_UNet_Cache()
+    # ct_all_candidates.Test_UNet_Cache()
+    ct_all_candidates.Test_Type_Cache()
 
 def test_cache_mem():
     """测试刷缓存功能"""

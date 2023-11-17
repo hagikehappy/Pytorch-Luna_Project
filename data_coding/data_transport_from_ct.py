@@ -477,14 +477,14 @@ class CT_All_Candidates:
 
         ## 下面是使用从中心开始延伸搜索的方法，这种方法可以避免将肺壁记入最终的标注中
         ct_slices_label = torch.ones_like(ct_slices_output).to(self.device)
-        search_begin = diameter // 4
+        search_begin = 0
         for k in range(self.cache_thickness):
             label_radius_tmp = [2, 2]
             label_radius_ori = [2, 2]
             label_radius = [2, 2]  # [w, h]
             for m in [0, 1]:
                 ## [0]位置总是目标位置
-                label_radius_tmp[0], label_radius_tmp[1] = 2 + search_begin, 0
+                label_radius_tmp[0], label_radius_tmp[1] = 1 + search_begin, 0
                 try:
                     while ct_slices_output[k, h_n + label_radius_tmp[1 - m], w_n + label_radius_tmp[m]] \
                             >= settings[Config_Item.UNet_low_threshold_rate] and \
@@ -604,9 +604,9 @@ class CT_All_Candidates:
     def Cache_All_CT_Candidates(self):
         """用于将所有最终用于神经网络处理的结节刷入磁盘缓存，此处用Extract_Info_From_CSV实现了"""
         self.Extract_Info_From_CSV()
-        # self.Make_Cache_for_UNet(dataset_cache_type.train_UNet)
-        # self.Make_Cache_for_UNet(dataset_cache_type.eval_UNet)
-        # self.Make_Cache_for_Type(dataset_cache_type.train_type)
+        self.Make_Cache_for_UNet(dataset_cache_type.train_UNet)
+        self.Make_Cache_for_UNet(dataset_cache_type.eval_UNet)
+        self.Make_Cache_for_Type(dataset_cache_type.train_type)
         self.Make_Cache_for_Type(dataset_cache_type.eval_type)
         pass
 
@@ -622,6 +622,22 @@ class CT_All_Candidates:
         CT_Transform.show_one_ct_tensor(input_t, settings[Config_Item.UNet_train_thickness_half], (-1, 1))
         CT_Transform.show_one_ct_tensor(label_t, settings[Config_Item.UNet_train_thickness_half], (0, 1))
         print(input_t.shape, label_t.shape)
+
+    @staticmethod
+    def Test_Type_Cache(index=None):
+        """测试cache的可用性，指定某种cache后从中抽取并显示"""
+        if index is None:
+            index = []
+            random.seed(int(time.time()))
+            index.append(random.randint(0, settings[Config_Item.train_type_annotated_dataset_num] - 1))
+            index.append(random.randint(0, settings[Config_Item.train_type_unannotated_dataset_num] - 1))
+        print(f"Now We are showing Type Annotated and Unannotated, index: {index}")
+        annotated_t = Get_CT_Cache(index[0], dataset_cache_type.train_type_annotated)
+        unannotated_t = Get_CT_Cache(index[1], dataset_cache_type.train_type_unannotated)
+        for k in range(settings[Config_Item.Type_train_thickness_half]):
+            CT_Transform.show_one_ct_tensor(annotated_t, k, (0, 1))
+        # CT_Transform.show_one_ct_tensor(unannotated_t, settings[Config_Item.Type_train_thickness_half], (0, 1))
+        print(annotated_t.shape, unannotated_t.shape)
 
 
 class CT_Transform:
