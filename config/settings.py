@@ -51,12 +51,12 @@ class Config_Item(Enum):
     eval_type_unannotated_dataset_cache = 35
     ## Predict
     predict_dataset_cache = 36
-    predict_raw_dataset_cache = 36
-    predict_raw_annotated_dataset_cache = 37
-    predict_raw_unannotated_dataset_cache = 38
-    predict_UNet_dataset_cache = 39
-    predict_UNet_annotated_dataset_cache = 40
-    predict_UNet_unannotated_dataset_cache = 41
+    predict_raw_dataset_cache = 37
+    predict_raw_annotated_dataset_cache = 38
+    predict_raw_unannotated_dataset_cache = 39
+    predict_UNet_dataset_cache = 40
+    predict_UNet_annotated_dataset_cache = 41
+    predict_UNet_unannotated_dataset_cache = 42
 
     ## Dataset Parameter: 51 - 60
     train_UNet_dataset_num = 51
@@ -154,6 +154,7 @@ class Settings:
             os.path.join(self.config_dict[Config_Item.predict_dataset_cache.name], "raw/")
         self.config_dict[Config_Item.predict_raw_annotated_dataset_cache.name] = \
             os.path.join(self.config_dict[Config_Item.predict_raw_dataset_cache.name], "annotated/")
+
         self.config_dict[Config_Item.predict_raw_unannotated_dataset_cache.name] = \
             os.path.join(self.config_dict[Config_Item.predict_raw_dataset_cache.name], "unannotated/")
         self.config_dict[Config_Item.predict_UNet_dataset_cache.name] = \
@@ -167,48 +168,48 @@ class Settings:
         tmp_num = [0 for _ in range(6)]
         i = 0
         self._read_note(Config_Item.train_UNet_input_dataset_cache.name,
-                        Config_Item.train_UNet_dataset_num.name, tmp_num[i])
+                        Config_Item.train_UNet_dataset_num.name, tmp_num, i)
         self._read_note(Config_Item.train_UNet_label_dataset_cache.name,
-                        Config_Item.train_UNet_dataset_num.name, tmp_num[i])
+                        Config_Item.train_UNet_dataset_num.name, tmp_num, i)
         self._turn_to_tuple_with_num(Config_Item.train_UNet_dataset_cache.name, tmp_num[i])
 
         i += 1
         self._read_note(Config_Item.train_type_annotated_dataset_cache.name,
-                        Config_Item.train_type_annotated_dataset_num.name, tmp_num[i])
+                        Config_Item.train_type_annotated_dataset_num.name, tmp_num, i)
         self._read_note(Config_Item.train_type_unannotated_dataset_cache.name,
-                        Config_Item.train_type_unannotated_dataset_num.name, tmp_num[i])
+                        Config_Item.train_type_unannotated_dataset_num.name, tmp_num, i)
         self._turn_to_tuple_with_num(Config_Item.train_type_dataset_cache.name, tmp_num[i])
 
         tmp_num[i-1] = tmp_num[i-1] + tmp_num[i]
         self._turn_to_tuple_with_num(Config_Item.train_dataset_cache.name, tmp_num[i-1])
 
         self._read_note(Config_Item.eval_UNet_input_dataset_cache.name,
-                        Config_Item.eval_UNet_dataset_num.name, tmp_num[i])
+                        Config_Item.eval_UNet_dataset_num.name, tmp_num, i)
         self._read_note(Config_Item.eval_UNet_label_dataset_cache.name,
-                        Config_Item.eval_UNet_dataset_num.name, tmp_num[i])
+                        Config_Item.eval_UNet_dataset_num.name, tmp_num, i)
         self._turn_to_tuple_with_num(Config_Item.eval_UNet_dataset_cache.name, tmp_num[i])
 
         i += 1
         self._read_note(Config_Item.eval_type_annotated_dataset_cache.name,
-                        Config_Item.eval_type_annotated_dataset_num.name, tmp_num[i])
+                        Config_Item.eval_type_annotated_dataset_num.name, tmp_num, i)
         self._read_note(Config_Item.eval_type_unannotated_dataset_cache.name,
-                        Config_Item.eval_type_unannotated_dataset_num.name, tmp_num[i])
+                        Config_Item.eval_type_unannotated_dataset_num.name, tmp_num, i)
         self._turn_to_tuple_with_num(Config_Item.eval_type_dataset_cache.name, tmp_num[i])
 
         tmp_num[i - 1] = tmp_num[i - 1] + tmp_num[i]
         self._turn_to_tuple_with_num(Config_Item.eval_dataset_cache.name, tmp_num[i - 1])
 
         self._read_note(Config_Item.predict_raw_annotated_dataset_cache.name,
-                        Config_Item.predict_annotated_dataset_num.name, tmp_num[i])
+                        Config_Item.predict_annotated_dataset_num.name, tmp_num, i)
         self._read_note(Config_Item.predict_raw_unannotated_dataset_cache.name,
-                        Config_Item.predict_unannotated_dataset_num.name, tmp_num[i])
+                        Config_Item.predict_unannotated_dataset_num.name, tmp_num, i)
         self._turn_to_tuple_with_num(Config_Item.predict_raw_dataset_cache.name, tmp_num[i])
 
         i += 1
         self._read_note(Config_Item.predict_UNet_annotated_dataset_cache.name,
-                        Config_Item.predict_annotated_dataset_num.name)
+                        Config_Item.predict_annotated_dataset_num.name, tmp_num, i)
         self._read_note(Config_Item.predict_UNet_unannotated_dataset_cache.name,
-                        Config_Item.predict_unannotated_dataset_num.name)
+                        Config_Item.predict_unannotated_dataset_num.name, tmp_num, i)
         self._turn_to_tuple_with_num(Config_Item.predict_UNet_dataset_cache.name, tmp_num[i])
 
         tmp_num[i - 1] = tmp_num[i - 1] + tmp_num[i]
@@ -261,7 +262,7 @@ class Settings:
         with open(self.config_path, "w") as f:
             json.dump(self.config_dict, f, indent=4)
 
-    def _read_note(self, dataset_name, num_name, tmp_num=0):
+    def _read_note(self, dataset_name, num_name, tmp_num=[0], i=0):
         """读取dataset的数值"""
         try:
             with open(os.path.join(self.config_dict[dataset_name], "note"), "r") as f:
@@ -272,7 +273,7 @@ class Settings:
             raise abort.SettingsAbort(f"Number Of {dataset_name} Cache ERROR!!!")
         self.config_dict[dataset_name] = (self.config_dict[dataset_name], self.config_dict[num_name])
         self.total_cache_num += self.config_dict[num_name]
-        tmp_num += self.config_dict[num_name]
+        tmp_num[i] += self.config_dict[num_name]
 
     def _turn_to_tuple_with_num(self, dataset_name, num):
         """将路径变为带有cache数量的元组"""

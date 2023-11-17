@@ -14,11 +14,11 @@
     ],
     "train_dataset_cache": [
         "dataset/Cache/train/",
-        0
+        1754
     ],
     "train_UNet_dataset_cache": [
         "dataset/Cache/train/UNet/",
-        0
+        1754
     ],
     "train_UNet_input_dataset_cache": [
         "dataset/Cache/train/UNet/input/",
@@ -42,11 +42,11 @@
     ],
     "eval_dataset_cache": [
         "dataset/Cache/eval/",
-        0
+        216
     ],
     "eval_UNet_dataset_cache": [
         "dataset/Cache/eval/UNet/",
-        0
+        216
     ],
     "eval_UNet_input_dataset_cache": [
         "dataset/Cache/eval/UNet/input/",
@@ -69,10 +69,11 @@
         0
     ],
     "predict_dataset_cache": [
-        [
-            "dataset/Cache/predict/raw/",
-            0
-        ],
+        "dataset/Cache/predict/",
+        0
+    ],
+    "predict_raw_dataset_cache": [
+        "dataset/Cache/predict/raw/",
         0
     ],
     "predict_raw_annotated_dataset_cache": [
@@ -84,15 +85,15 @@
         0
     ],
     "predict_UNet_dataset_cache": [
-        "dataset/Cache/predict/raw/UNet/",
+        "dataset/Cache/predict/UNet/",
         0
     ],
     "predict_UNet_annotated_dataset_cache": [
-        "dataset/Cache/predict/raw/UNet/annotated/",
+        "dataset/Cache/predict/UNet/annotated/",
         0
     ],
     "predict_UNet_unannotated_dataset_cache": [
-        "dataset/Cache/predict/raw/UNet/unannotated/",
+        "dataset/Cache/predict/UNet/unannotated/",
         0
     ],
     "train_UNet_dataset_num": 877,
