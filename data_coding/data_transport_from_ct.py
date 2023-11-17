@@ -267,6 +267,8 @@ class CT_All_Candidates:
         self.annotations_list_current_pointer = 0
         self.annotations_list_current_length = 0
         self.ct_caches_length = 0
+        self.ct_annotated_length = 0
+        self.ct_unannotated_length = 0
 
         self.cache_path = from_cache_type_to_parameter(cache_type)[0]
         if cache_type == dataset_cache_type.train_UNet:
@@ -604,7 +606,7 @@ class CT_All_Candidates:
         self.Extract_Info_From_CSV()
         # self.Make_Cache_for_UNet(dataset_cache_type.train_UNet)
         # self.Make_Cache_for_UNet(dataset_cache_type.eval_UNet)
-        self.Make_Cache_for_Type(dataset_cache_type.train_type)
+        # self.Make_Cache_for_Type(dataset_cache_type.train_type)
         self.Make_Cache_for_Type(dataset_cache_type.eval_type)
         pass
 

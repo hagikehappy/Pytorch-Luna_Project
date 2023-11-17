@@ -22,7 +22,7 @@ def clean_caches(clean_types=None):
 
 
 if __name__ == "__main__":
-    clean_caches((dataset_cache_type.total,
+    clean_caches((dataset_cache_type.eval_type,
                   ))
 
 
