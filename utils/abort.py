@@ -17,3 +17,22 @@ class CacheAbort(Exception):
 
     def __str__(self):
         return self.message
+
+
+class TrainAbort(Exception):
+    """用于在训练发生错误时使用的Error"""
+    def __init__(self, message="Train Abort!!!"):
+        self.message = message
+
+    def __str__(self):
+        return self.message
+
+
+class PredictAbort(Exception):
+    """用于在训练发生错误时使用的Error"""
+    def __init__(self, message="Predict Abort!!!"):
+        self.message = message
+
+    def __str__(self):
+        return self.message
+

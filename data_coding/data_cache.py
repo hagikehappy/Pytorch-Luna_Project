@@ -73,6 +73,7 @@ def Flush_CT_Data_To_Mem(cache_types):
         counter = DynamicCounter(num, f"{path}", 100)
         for i in range(num):
             Get_CT_Cache(i, path)
+            counter.increment()
     print()
 
 

@@ -27,9 +27,13 @@ class Config_Item(Enum):
     annotations_list_path = 6
     unannodated_data_rate = 7
 
+    ## Config.json Output
+    config_json_path = 10
+
     ## Model Save Path: 16 - 20
     model_save_path = 16
     UNet_save_path = 17
+    UNet_best_path = 18
 
     ## Dataset Cache Path: 21 - 40
     dataset_cache = 21
@@ -72,16 +76,27 @@ class Config_Item(Enum):
     ## Global Train Configure: 61 - 70
     device = 61
 
-    ## UNet Train Configure: 71 -
+    ## UNet Train Configure: 71 - 80
     UNet_total_epochs = 71
     UNet_train_batch_size = 72
     UNet_learning_rate = 73
     UNet_optimizer_type = 75
-    UNet_optimizer_parameter = 76
+    UNet_optimizer_para = 76
     UNet_loss_type = 77
-    UNet_loss_parameter = 78
+    UNet_loss_para = 78
+    UNet_train_from_exist = 79
+    UNet_train_load_path = 80
 
-    ## Data Configure
+    ## UNet Configure: 81 - 90
+    UNet_depth = 81
+    UNet_wf = 82
+    UNet_padding = 83
+    UNet_batchnorm = 84
+    UNet_upmode = 85
+
+    ## Type Configure: 91 - 100
+
+    ## Data Configure: 101 - 120
     raw_data_size = 101
     raw_data_centercrop_size = 102
     raw_data_cropped_size = 103
@@ -101,6 +116,19 @@ class Config_Item(Enum):
     Type_train_thickness_half = 115
     Type_train_threshold = 116
 
+    ## Loss Configure: 121 - 130
+    Dice_Loss_Smooth = 121
+    Dice_Loss_Rate = 122
+
+    ## UNet Data Augmentation: 131 - 140
+    UNet_data_RandomHorizontalFlip = 131
+    UNet_data_RandomVerticalFlip = 132
+    UNet_data_RandomRotation = 133
+    UNet_data_RandomRotation_para = 134
+
+    ## Monitor Set: 151 -
+    monitor_dir_name = 151
+
 
 class Settings:
     """设置类"""
@@ -117,10 +145,15 @@ class Settings:
         self.config_dict[Config_Item.annotations_list_path.name] = "dataset/LUNA-Data/CSVFILES/annotations.csv"
         self.config_dict[Config_Item.unannodated_data_rate.name] = 100
 
+        ## Config.json Path
+        self.config_dict[Config_Item.config_json_path.name] = "config/config.json"
+
         ## Model Save Path
         self.config_dict[Config_Item.model_save_path.name] = "save/model/"
         self.config_dict[Config_Item.UNet_save_path.name] = \
             os.path.join(self.config_dict[Config_Item.model_save_path.name], "UNet/")
+        self.config_dict[Config_Item.UNet_best_path.name] = \
+            os.path.join(self.config_dict[Config_Item.UNet_save_path.name], "best_model")
 
         ## Dataset Cache Path
         self.config_dict[Config_Item.dataset_cache.name] = "dataset/Cache/"
@@ -229,24 +262,34 @@ class Settings:
         self.config_dict[Config_Item.device.name] = "cuda"
 
         ## UNet Train Configure
-        self.config_dict[Config_Item.UNet_total_epochs.name] = 10
+        self.config_dict[Config_Item.UNet_total_epochs.name] = 1000
         self.config_dict[Config_Item.UNet_train_batch_size.name] = 10
         self.config_dict[Config_Item.UNet_learning_rate.name] = 0.001
         self.config_dict[Config_Item.UNet_optimizer_type.name] = Optimizer_Type.SGD.name
         if self.config_dict[Config_Item.UNet_optimizer_type.name] == Optimizer_Type.SGD.name:
-            self.config_dict[Config_Item.UNet_optimizer_parameter.name] = \
+            self.config_dict[Config_Item.UNet_optimizer_para.name] = \
                 {'momentum': 0.99, 'dampening': 0.5, 'weight_decay': 0.001}
         elif self.config_dict[Config_Item.UNet_optimizer_type.name] == Optimizer_Type.Adam.name:
-            self.config_dict[Config_Item.UNet_optimizer_parameter.name] = \
+            self.config_dict[Config_Item.UNet_optimizer_para.name] = \
                 {'betas': (0.9, 0.999)}
         else:
             raise abort.SettingsAbort(f"There is no such optimizer as {Config_Item.UNet_optimizer_type.name}!!!")
         self.config_dict[Config_Item.UNet_loss_type.name] = Loss_Type.Dice_Loss.name
         if self.config_dict[Config_Item.UNet_loss_type.name] == Loss_Type.Dice_Loss.name:
-            self.config_dict[Config_Item.UNet_loss_parameter.name] = \
+            self.config_dict[Config_Item.UNet_loss_para.name] = \
                 {}
         else:
             raise abort.SettingsAbort(f"There is no such Loss as {Config_Item.UNet_loss_type.name}!!!")
+        self.config_dict[Config_Item.UNet_train_from_exist.name] = False
+        self.config_dict[Config_Item.UNet_train_load_path.name] = \
+            os.path.join(self.config_dict[Config_Item.model_save_path.name], "")
+
+        ## UNet Configure
+        self.config_dict[Config_Item.UNet_depth.name] = 5
+        self.config_dict[Config_Item.UNet_wf.name] = 6
+        self.config_dict[Config_Item.UNet_padding.name] = True
+        self.config_dict[Config_Item.UNet_batchnorm.name] = False
+        self.config_dict[Config_Item.UNet_upmode.name] = "upconv"
 
         ## Data Configure
         ## for UNet
@@ -276,6 +319,20 @@ class Settings:
             self.config_dict[Config_Item.Type_train_thickness.name] // 2
         self.config_dict[Config_Item.Type_train_threshold.name] = \
             self.config_dict[Config_Item.UNet_low_threshold_rate.name] * 2
+
+        ## Loss Configuration
+        self.config_dict[Config_Item.Dice_Loss_Smooth.name] = 1.0
+        self.config_dict[Config_Item.Dice_Loss_Rate.name] = 8.0
+
+        ## UNet Data Augmentation
+        self.config_dict[Config_Item.UNet_data_RandomHorizontalFlip.name] = True
+        self.config_dict[Config_Item.UNet_data_RandomVerticalFlip.name] = True
+        self.config_dict[Config_Item.UNet_data_RandomRotation.name] = True
+        self.config_dict[Config_Item.UNet_data_RandomRotation_para.name] = \
+            {"degrees": 10}
+
+        ## Monitor Set: 151 -
+        self.config_dict[Config_Item.monitor_dir_name.name] = "monitor"
 
 
         with open(self.config_path, "w") as f:

@@ -1,7 +1,7 @@
 """用于封装unet的最终函数"""
 
 
-from unet import UNet
+from model.unet import UNet
 import torch.nn as nn
 import math
 from config.extern_var import settings
@@ -13,7 +13,11 @@ class UNet_Wrapper(nn.Module):
 
     def __init__(self, in_channels=settings[Config_Item.UNet_train_thickness],
                  out_channels=settings[Config_Item.UNet_train_thickness],
-                 depth=5, wf=6, padding=True, batch_norm=False, up_mode="upconv"):
+                 depth=settings[Config_Item.UNet_depth],
+                 wf=settings[Config_Item.UNet_wf],
+                 padding=settings[Config_Item.UNet_padding],
+                 batch_norm=settings[Config_Item.UNet_batchnorm],
+                 up_mode=settings[Config_Item.UNet_upmode]):
         """初始化模型"""
 
         ## 初始化模型结构

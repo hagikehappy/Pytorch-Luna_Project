@@ -6,4 +6,5 @@ from data_coding.data_cache import *
 
 def test_train_unet():
     """Unet训练的基本测试"""
-    train()
+    train_unet = Train_UNet()
+    train_unet.train_all_epochs()

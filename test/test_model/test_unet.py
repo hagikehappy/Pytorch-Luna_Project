@@ -1,4 +1,3 @@
-from model.custom_unet import *
 from data_coding.data_cache import *
 from data_coding.data_transport_from_ct import *
 

@@ -6,8 +6,10 @@
     "candidates_list_path": "dataset/LUNA-Data/CSVFILES/candidates.csv",
     "annotations_list_path": "dataset/LUNA-Data/CSVFILES/annotations.csv",
     "unannodated_data_rate": 100,
+    "config_json_path": "config/config.json",
     "model_save_path": "save/model/",
     "UNet_save_path": "save/model/UNet/",
+    "UNet_best_path": "save/model/UNet/best_model",
     "dataset_cache": [
         "dataset/Cache/",
         7219
@@ -106,17 +108,24 @@
     "predict_unannotated_dataset_num": 0,
     "cache_maxsize": 7219,
     "device": "cuda",
-    "UNet_total_epochs": 10,
+    "UNet_total_epochs": 1000,
     "UNet_train_batch_size": 10,
     "UNet_learning_rate": 0.001,
     "UNet_optimizer_type": "SGD",
-    "UNet_optimizer_parameter": {
+    "UNet_optimizer_para": {
         "momentum": 0.99,
         "dampening": 0.5,
         "weight_decay": 0.001
     },
     "UNet_loss_type": "Dice_Loss",
-    "UNet_loss_parameter": {},
+    "UNet_loss_para": {},
+    "UNet_train_from_exist": false,
+    "UNet_train_load_path": "save/model/",
+    "UNet_depth": 5,
+    "UNet_wf": 6,
+    "UNet_padding": true,
+    "UNet_batchnorm": false,
+    "UNet_upmode": "upconv",
     "raw_data_size": 512,
     "raw_data_cropped_size": 40,
     "raw_data_centercrop_size": 432,
@@ -132,5 +141,14 @@
     "Type_train_cache_size_half": 36,
     "Type_train_thickness": 32,
     "Type_train_thickness_half": 16,
-    "Type_train_threshold": 0.3
+    "Type_train_threshold": 0.3,
+    "Dice_Loss_Smooth": 1.0,
+    "Dice_Loss_Rate": 8.0,
+    "UNet_data_RandomHorizontalFlip": true,
+    "UNet_data_RandomVerticalFlip": true,
+    "UNet_data_RandomRotation": true,
+    "UNet_data_RandomRotation_para": {
+        "degrees": 10
+    },
+    "monitor_dir_name": "monitor"
 }
