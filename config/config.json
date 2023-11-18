@@ -108,7 +108,7 @@
     "predict_unannotated_dataset_num": 0,
     "cache_maxsize": 7219,
     "device": "cuda",
-    "UNet_total_epochs": 1000,
+    "UNet_total_epochs": 100,
     "UNet_train_batch_size": 10,
     "UNet_learning_rate": 0.001,
     "UNet_optimizer_type": "SGD",
@@ -150,5 +150,6 @@
     "UNet_data_RandomRotation_para": {
         "degrees": 10
     },
-    "monitor_dir_name": "monitor"
+    "monitor_dir_name": "monitor",
+    "monitor_graph_display_size": 448
 }

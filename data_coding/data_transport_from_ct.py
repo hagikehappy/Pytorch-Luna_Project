@@ -234,7 +234,7 @@ class CT_All_Candidates:
 
         ## 获取基本output
         ct_slices_output = self._get_output(w_n_checked, h_n_checked, c_n_checked, ct_graphic)
-        ct_slices_output = self._Normalize(ct_slices_output, (-1, 1), (0, 1))
+        ct_slices_output = self.Normalize(ct_slices_output, (-1, 1), (0, 1))
 
         # CT_Transform.show_one_ct_tensor(ct_slices_output, self.cache_thickness_half, (0, 1))
         if self.candidates_list[j][4] == 0:
@@ -454,7 +454,7 @@ class CT_All_Candidates:
 
         ## 处理label
         ## 这里认为 X, Y 尺度是一样的，将坐标转换为output内的坐标
-        ct_slices_output = self._Normalize(ct_slices_output, (-1, 1), (0, 1))
+        ct_slices_output = self.Normalize(ct_slices_output, (-1, 1), (0, 1))
         if diameter > settings[Config_Item.UNet_train_input_cache_size]:
             diameter = settings[Config_Item.UNet_train_input_cache_size]
         w_n -= w_n_checked - settings[Config_Item.UNet_train_input_cache_size_half]
@@ -597,7 +597,7 @@ class CT_All_Candidates:
         return ct_slices_label
 
     @staticmethod
-    def _Normalize(val, ori, dest):
+    def Normalize(val, ori, dest):
         """将数据缩放至指定范围，ori, dest均表示为(min, max)"""
         return (val - ori[0]) * (dest[1] - dest[0]) / (ori[1] - ori[0]) + dest[0]
 

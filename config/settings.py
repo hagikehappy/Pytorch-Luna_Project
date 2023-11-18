@@ -128,6 +128,7 @@ class Config_Item(Enum):
 
     ## Monitor Set: 151 -
     monitor_dir_name = 151
+    monitor_graph_display_size = 152
 
 
 class Settings:
@@ -262,7 +263,7 @@ class Settings:
         self.config_dict[Config_Item.device.name] = "cuda"
 
         ## UNet Train Configure
-        self.config_dict[Config_Item.UNet_total_epochs.name] = 1000
+        self.config_dict[Config_Item.UNet_total_epochs.name] = 100
         self.config_dict[Config_Item.UNet_train_batch_size.name] = 10
         self.config_dict[Config_Item.UNet_learning_rate.name] = 0.001
         self.config_dict[Config_Item.UNet_optimizer_type.name] = Optimizer_Type.SGD.name
@@ -333,7 +334,7 @@ class Settings:
 
         ## Monitor Set: 151 -
         self.config_dict[Config_Item.monitor_dir_name.name] = "monitor"
-
+        self.config_dict[Config_Item.monitor_graph_display_size.name] = 448
 
         with open(self.config_path, "w") as f:
             json.dump(self.config_dict, f, indent=4)

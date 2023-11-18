@@ -1,6 +1,7 @@
 import os.path
 import time
 from datetime import datetime
+import subprocess
 import shutil
 
 import torch
@@ -18,7 +19,9 @@ from utils.timer import *
 import utils.abort as abort
 from data_coding.data_transport_from_ct import *
 from train.loss_set import Batch_Dice_Loss
-import torchvision.transforms.functional as F
+import torchvision.transforms.functional as TF
+import torch.nn.functional as F
+
 
 
 class Train_UNet:
@@ -49,7 +52,8 @@ class Train_UNet:
                                        weight_decay=settings[Config_Item.UNet_optimizer_para]['weight_decay'])
         elif settings[Config_Item.UNet_optimizer_type] == Optimizer_Type.Adam.name:
             self.optimizer = optim.Adam(self.model.parameters(),
-                                        lr=settings['learning_rate'], betas=settings['optimizer_parameter']['betas'])
+                                        lr=settings[Config_Item.UNet_learning_rate],
+                                        betas=settings[Config_Item.UNet_optimizer_para]['betas'])
         else:
             raise abort.TrainAbort("Wrong Optimizer!!!")
 
@@ -85,6 +89,9 @@ class Train_UNet:
         ## 可视化结构模型
         self.monitor.add_graph(self.model,
                                Get_CT_Cache(0, dataset_cache_type.eval_UNet_label).unsqueeze(0).to(self.device))
+        ## 用于在终端启动独立的tensorboard进程
+        process = subprocess.Popen(
+            [f'konsole --hold -e tensorboard --logdir={self.monitor_path}'], shell=True, close_fds=True)
 
     def train_all_epochs(self):
         """全序数训练器"""
@@ -131,8 +138,8 @@ class Train_UNet:
 
         total_eval_loss /= self.eval_dataset.length
         ## 打印训练信息
-        print("Epoch [{}/{}], Train Loss: {:.4f}, Eval Loss: {:.4f}".format(epoch + 1, self.total_epochs,
-                                                                            total_train_loss, total_eval_loss))
+        print("       Epoch [{}/{}], Train Loss: {:.4f}, Eval Loss: {:.4f}".format(epoch, self.total_epochs,
+                                                                                   total_train_loss, total_eval_loss))
 
         ## 保存模型参数
         if self.best_eval_score is None or self.best_eval_score > total_eval_loss:
@@ -146,11 +153,26 @@ class Train_UNet:
                 os.remove(self.best_model_path)
             self.best_model_path = save_path
 
-        ## 添加监视
+        ## 添加数值监视
         self.monitor.add_scalar('Train loss', total_train_loss, global_step=epoch)
         self.monitor.add_scalar('Eval  loss', total_eval_loss, global_step=epoch)
-        self.monitor.add_image('Input', inputs.to(self.cpu), global_step=epoch, dataformats="NCHW")
-        self.monitor.add_image('Label', labels.to(self.cpu), global_step=epoch, dataformats="NCHW")
+
+        ## 放大到合适大小再监视
+        final_size = settings[Config_Item.monitor_graph_display_size]
+        inputs = F.interpolate(CT_All_Candidates.Normalize(inputs, (-1, 1), (0, 1)), size=final_size,
+                               mode='bilinear', align_corners=False)
+        labels = F.interpolate(labels, size=final_size,
+                               mode='bilinear', align_corners=False)
+        outputs = F.interpolate(outputs, size=final_size,
+                                mode='bilinear', align_corners=False)
+        for i in range(settings[Config_Item.UNet_train_thickness_half],
+                       settings[Config_Item.UNet_train_thickness_half]+1):
+            self.monitor.add_image(f'Input Channel {i}', inputs[0, :, :, :][i].unsqueeze(0),
+                                   global_step=epoch, dataformats="CHW")
+            self.monitor.add_image(f'Label Channel {i}', labels[0, :, :, :][i].unsqueeze(0),
+                                   global_step=epoch, dataformats="CHW")
+            self.monitor.add_image(f'Output Channel {i}', outputs[0, :, :, :][i].unsqueeze(0),
+                                   global_step=epoch, dataformats="CHW")
 
 
 class UNet_Dataset(Dataset):
